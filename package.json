@@ -1,0 +1,17 @@
+{
+  "name": "reservation-widget",
+  "version": "0.0.0",
+  "description": "A Lit web component for restaurant reservations",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "firebase": "^12.6.0",
+    "lit": "^3.1.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
