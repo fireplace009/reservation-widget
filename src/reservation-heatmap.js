@@ -92,9 +92,9 @@ export class ReservationHeatmap extends LitElement {
     }
 
     .day-cell.disabled {
-      background-color: #f5f5f5 !important;
-      color: #ccc;
-      cursor: default;
+      background-color: #e0e0e0 !important;
+      color: #999;
+      cursor: not-allowed;
       pointer-events: none;
     }
 
