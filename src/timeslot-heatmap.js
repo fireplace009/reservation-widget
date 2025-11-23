@@ -100,7 +100,7 @@ export class TimeslotHeatmap extends LitElement {
     // Actually, the parent passes `reservations` which is ALL reservations.
     // We need to filter by `this.date` AND `time`.
 
-    const slotReservations = this.reservations.filter(r => r.date === this.date && r.time === time);
+    const slotReservations = this.reservations.filter(r => r.date === this.date && r.time === time && r.status !== 'cancelled');
     const totalGuests = slotReservations.reduce((sum, r) => sum + Number(r.guests), 0);
     const blockedReservation = slotReservations.find(r => r.type === 'blocked');
     const isBlocked = !!blockedReservation;
@@ -111,12 +111,13 @@ export class TimeslotHeatmap extends LitElement {
     return { totalGuests, percentage, isBlocked, blockedId };
   }
 
-  getColor(percentage) {
+  getColor(percentage, isBlocked) {
+    if (isBlocked) return '#e57373'; // Red for blocked
     if (percentage === 0) return '#e8f5e9'; // Very light green
     if (percentage < 0.3) return '#a5d6a7'; // Green
     if (percentage < 0.6) return '#fff59d'; // Yellow
     if (percentage < 0.9) return '#ffcc80'; // Orange
-    return '#e57373'; // Red
+    return '#e57373'; // Red for full
   }
 
   handleSlotClick(time, isBlocked, blockedId) {
@@ -137,7 +138,7 @@ export class TimeslotHeatmap extends LitElement {
       <div class="slots-container">
         ${slots.map(time => {
       const { totalGuests, percentage, isBlocked, blockedId } = this.getSlotOccupancy(time);
-      const color = this.getColor(percentage);
+      const color = this.getColor(percentage, isBlocked);
 
       return html`
             <div 

@@ -5,6 +5,12 @@ export const translations = {
         'time': 'Time',
         'guests': 'Guests',
         'email': 'Email',
+        'name': 'Name',
+        'phone': 'Phone (optional)',
+        'description': 'Description (optional)',
+        'placeholder_name': 'John Doe',
+        'placeholder_phone': '+1 234 567 890',
+        'placeholder_description': 'Allergies, special requests...',
         'select_time': 'Select a time',
         'confirm_reservation': 'Confirm Reservation',
         'loading': 'Loading...',
@@ -18,7 +24,13 @@ export const translations = {
         'slot_unavailable': 'Sorry, this time slot is fully booked for your party size.',
         'seats_left': '({count} seats left)',
         'only_seats_left': '(Only {count} left)',
-        'placeholder_email': 'you@example.com'
+        'placeholder_email': 'you@example.com',
+        'status': 'Status',
+        'cancel': 'Cancel Reservation',
+        'save': 'Save Changes',
+        'edit_reservation': 'Edit Reservation',
+        'confirmed': 'Confirmed',
+        'cancelled': 'Cancelled'
     },
     'nl-BE': {
         'reserve_table': 'Reserveer een Tafel',
@@ -26,6 +38,12 @@ export const translations = {
         'time': 'Tijd',
         'guests': 'Gasten',
         'email': 'E-mail',
+        'name': 'Naam',
+        'phone': 'Telefoon (optioneel)',
+        'description': 'Opmerking (optioneel)',
+        'placeholder_name': 'Jan Jansen',
+        'placeholder_phone': '+32 470 12 34 56',
+        'placeholder_description': 'Allergieën, speciale verzoeken...',
         'select_time': 'Kies een tijdstip',
         'confirm_reservation': 'Bevestig Reservering',
         'loading': 'Laden...',
@@ -39,7 +57,13 @@ export const translations = {
         'slot_unavailable': 'Sorry, dit tijdslot is volzet voor uw groepsgrootte.',
         'seats_left': '({count} plaatsen over)',
         'only_seats_left': '(Nog maar {count} over)',
-        'placeholder_email': 'jouw@email.com'
+        'placeholder_email': 'jouw@email.com',
+        'status': 'Status',
+        'cancel': 'Annuleer Reservering',
+        'save': 'Opslaan',
+        'edit_reservation': 'Bewerk Reservering',
+        'confirmed': 'Bevestigd',
+        'cancelled': 'Geannuleerd'
     }
 };
 

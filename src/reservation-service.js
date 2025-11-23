@@ -1,5 +1,5 @@
 import { db } from './firebase-config.js';
-import { collection, addDoc, deleteDoc, doc, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, addDoc, deleteDoc, doc, query, where, getDocs, Timestamp, orderBy, updateDoc } from 'firebase/firestore';
 import { CONFIG } from './config.js';
 
 const COLLECTION_NAME = 'reservations';
@@ -30,7 +30,13 @@ export const checkAvailability = async (date, time, guests) => {
     const reservations = await getReservations(date);
 
     // Filter reservations for the same time slot
-    const slotReservations = reservations.filter(r => r.time === time);
+    const slotReservations = reservations.filter(r => r.time === time && r.status !== 'cancelled');
+
+    // Check if any reservation is blocked
+    const isBlocked = slotReservations.some(r => r.type === 'blocked');
+    if (isBlocked) {
+        return false;
+    }
 
     // Calculate total guests in this slot
     const currentCapacity = slotReservations.reduce((sum, r) => sum + r.guests, 0);
@@ -48,9 +54,11 @@ export const addReservation = async (reservation) => {
         date: reservation.date,
         time: reservation.time,
         guests: Number(reservation.guests),
-        name: reservation.name,
+        name: reservation.name || 'Guest',
         email: reservation.email,
-        phone: reservation.phone || '', // Optional
+        phone: reservation.phone || '',
+        description: reservation.description || '',
+        status: 'confirmed', // 'confirmed', 'cancelled'
         type: reservation.type || 'regular', // 'regular' or 'blocked'
         createdAt: new Date().toISOString()
     });
@@ -58,7 +66,18 @@ export const addReservation = async (reservation) => {
 };
 
 /**
+ * Updates an existing reservation.
+ * @param {string} id - Reservation ID.
+ * @param {Object} data - Data to update.
+ * @returns {Promise<void>}
+ */
+export const updateReservation = async (id, data) => {
+    await updateDoc(doc(db, COLLECTION_NAME, id), data);
+};
+
+/**
  * Fetches all reservations ordered by creation time (newest first).
+ * @returns {Promise<Array>} - List of all reservations.
  * @returns {Promise<Array>} - List of all reservations.
  */
 export const getAllReservations = async () => {

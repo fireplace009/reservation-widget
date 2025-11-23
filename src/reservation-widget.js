@@ -147,7 +147,10 @@ export class ReservationWidget extends LitElement {
     this.date = '';
     this.time = '';
     this.guests = 2;
+    this.name = '';
     this.email = '';
+    this.phone = '';
+    this.description = '';
     this.state = 'idle';
     this.errorMessage = '';
     this.availableSlots = [];
@@ -222,7 +225,7 @@ export class ReservationWidget extends LitElement {
       return;
     }
 
-    if (!this.date || !this.time || !this.email) {
+    if (!this.date || !this.time || !this.name || !this.email) {
       this.state = 'error';
       this.errorMessage = t('fill_all', this.locale);
       return;
@@ -242,7 +245,10 @@ export class ReservationWidget extends LitElement {
         date: this.date,
         time: this.time,
         guests: Number(this.guests),
+        name: this.name,
         email: this.email,
+        phone: this.phone,
+        description: this.description
       });
 
       // Send confirmation email
@@ -250,6 +256,7 @@ export class ReservationWidget extends LitElement {
         date: this.date,
         time: this.time,
         guests: Number(this.guests),
+        name: this.name,
         email: this.email
       });
 
@@ -270,8 +277,10 @@ export class ReservationWidget extends LitElement {
     this.date = '';
     this.time = '';
     this.guests = 2;
+    this.name = '';
     this.email = '';
-    this.email = '';
+    this.phone = '';
+    this.description = '';
     this.errorMessage = '';
     this.bookedCounts = {};
   }
@@ -324,8 +333,23 @@ export class ReservationWidget extends LitElement {
           </div>
 
           <div class="form-group">
+            <label for="name">${t('name', this.locale)}</label>
+            <input type="text" id="name" name="name" placeholder="${t('placeholder_name', this.locale)}" .value=${this.name} @input=${this.handleInput} required />
+          </div>
+
+          <div class="form-group">
             <label for="email">${t('email', this.locale)}</label>
             <input type="email" id="email" name="email" placeholder="${t('placeholder_email', this.locale)}" .value=${this.email} @input=${this.handleInput} required />
+          </div>
+
+          <div class="form-group">
+            <label for="phone">${t('phone', this.locale)}</label>
+            <input type="tel" id="phone" name="phone" placeholder="${t('placeholder_phone', this.locale)}" .value=${this.phone} @input=${this.handleInput} />
+          </div>
+
+          <div class="form-group">
+            <label for="description">${t('description', this.locale)}</label>
+            <input type="text" id="description" name="description" placeholder="${t('placeholder_description', this.locale)}" .value=${this.description} @input=${this.handleInput} />
           </div>
 
           ${this.state === 'error' || this.errorMessage ? html`<div class="message error">${this.errorMessage}</div>` : ''}

@@ -128,15 +128,21 @@ export class DataGrid extends LitElement {
             <th @click=${() => this.handleSort('date')}>Date & Time <span class="sort-icon">${this.renderSortIcon('date')}</span></th>
             <th @click=${() => this.handleSort('guests')}>Guests <span class="sort-icon">${this.renderSortIcon('guests')}</span></th>
             <th @click=${() => this.handleSort('email')}>Email <span class="sort-icon">${this.renderSortIcon('email')}</span></th>
+            <th @click=${() => this.handleSort('phone')}>Phone <span class="sort-icon">${this.renderSortIcon('phone')}</span></th>
+            <th @click=${() => this.handleSort('description')}>Description <span class="sort-icon">${this.renderSortIcon('description')}</span></th>
+            <th @click=${() => this.handleSort('status')}>Status <span class="sort-icon">${this.renderSortIcon('status')}</span></th>
             <th @click=${() => this.handleSort('createdAt')}>Created At <span class="sort-icon">${this.renderSortIcon('createdAt')}</span></th>
           </tr>
         </thead>
         <tbody>
           ${this.sortedItems.map(item => html`
-            <tr>
+            <tr @click=${() => this.dispatchEvent(new CustomEvent('row-click', { detail: item }))} style="cursor: pointer;">
               <td>${item.date} ${item.time}</td>
               <td>${item.guests}</td>
               <td>${item.email}</td>
+              <td>${item.phone || '-'}</td>
+              <td>${item.description || '-'}</td>
+              <td>${item.status || 'confirmed'}</td>
               <td>${this.formatDate(item.createdAt)}</td>
             </tr>
           `)}
