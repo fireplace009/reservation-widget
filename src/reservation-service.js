@@ -20,6 +20,22 @@ export const getReservations = async (dateStr) => {
 };
 
 /**
+ * Fetches a single reservation by ID.
+ * @param {string} id - Reservation ID.
+ * @returns {Promise<Object|null>} - Reservation object or null if not found.
+ */
+export const getReservationById = async (id) => {
+    const docRef = doc(db, COLLECTION_NAME, id);
+    const docSnap = await import('firebase/firestore').then(module => module.getDoc(docRef));
+
+    if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() };
+    } else {
+        return null;
+    }
+};
+
+/**
  * Checks if there is enough capacity for a reservation.
  * @param {string} date - YYYY-MM-DD
  * @param {string} time - HH:MM

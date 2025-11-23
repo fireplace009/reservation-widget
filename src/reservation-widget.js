@@ -241,7 +241,7 @@ export class ReservationWidget extends LitElement {
         throw new Error(t('slot_unavailable', this.locale));
       }
 
-      await addReservation({
+      const docId = await addReservation({
         date: this.date,
         time: this.time,
         guests: Number(this.guests),
@@ -253,6 +253,7 @@ export class ReservationWidget extends LitElement {
 
       // Send confirmation email
       sendConfirmationEmail({
+        id: docId,
         date: this.date,
         time: this.time,
         guests: Number(this.guests),

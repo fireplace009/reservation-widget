@@ -49,6 +49,10 @@ export async function sendConfirmationEmail(reservation) {
       </div>
       
       <p>Mocht u verhinderd zijn, laat het ons dan zo snel mogelijk weten.</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${window.location.origin}/cancel.html?id=${reservation.id}" style="background-color: #e57373; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Reservering Annuleren</a>
+      </div>
     </div>
     <div class="footer">
       <p>Tot snel!</p>
