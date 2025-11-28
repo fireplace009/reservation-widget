@@ -20,25 +20,102 @@ export class AdminDashboard extends LitElement {
     slotToBlock: { type: Object },
     blockAction: { type: String },
     selectedReservation: { type: Object }, // For editing
-    showEditModal: { type: Boolean }
+    showEditModal: { type: Boolean },
+    isSidebarOpen: { type: Boolean }
   };
 
   static styles = css`
     :host {
       display: block;
       font-family: 'Inter', sans-serif;
+      height: 100vh;
     }
 
-    main {
-      padding: 1rem 2rem;
-      max-width: 1200px;
-      margin: 0 auto;
+    .layout-container {
+      display: flex;
+      height: 100%;
+      width: 100%;
+    }
+
+    aside {
+      background: white;
+      border-right: 1px solid #e0e0e0;
+      transition: width 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      z-index: 10;
+      width: 260px;
+    }
+
+    aside.closed {
+      width: 60px;
+    }
+
+    .sidebar-header {
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      box-sizing: border-box;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .sidebar-content {
+      padding: 1rem;
       display: flex;
       flex-direction: column;
       gap: 1rem;
-      height: calc(100vh - 80px);
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    h1 {
+      color: #ff7a5c;
+      margin: 0;
+      font-size: 1.2rem;
+      opacity: 1;
+      transition: opacity 0.2s;
+    }
+
+    aside.closed h1,
+    aside.closed .user-email,
+    aside.closed .btn-text {
+      opacity: 0;
+      width: 0;
+      display: none;
+    }
+
+    .toggle-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      color: #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    main {
+      flex: 1;
+      padding: 1rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      height: 100%;
       box-sizing: border-box;
       overflow: hidden;
+      background-color: #f4f4f4;
     }
 
     .dashboard-section {
@@ -69,29 +146,6 @@ export class AdminDashboard extends LitElement {
       overflow: auto;
     }
 
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 2rem;
-      padding-bottom: 1rem;
-      border-bottom: 1px solid #e0e0e0;
-    }
-
-    h1 {
-      color: #ff7a5c;
-      margin: 0;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .logo-small {
-      width: 32px;
-      height: 32px;
-      object-fit: contain;
-    }
-
     button {
       padding: 0.8rem 1.5rem;
       background: #ff7a5c;
@@ -105,6 +159,57 @@ export class AdminDashboard extends LitElement {
 
     button:hover {
       opacity: 0.9;
+    }
+
+    .sidebar-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 0.8rem;
+      width: 100%;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: #555;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.2s;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .sidebar-btn:hover {
+      background: #f5f5f5;
+    }
+
+    .sidebar-btn.primary {
+      background: #ff7a5c;
+      color: white;
+    }
+
+    .sidebar-btn.primary:hover {
+      opacity: 0.9;
+    }
+
+    .sidebar-btn svg {
+      flex-shrink: 0;
+    }
+
+    .user-info {
+      margin-top: auto;
+      padding: 1rem;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .user-email {
+      font-size: 0.8rem;
+      color: #888;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .login-container {
@@ -201,6 +306,9 @@ export class AdminDashboard extends LitElement {
     this.slotToBlock = null;
     this.selectedReservation = null;
     this.showEditModal = false;
+    this.showEditModal = false;
+    const storedSidebarState = localStorage.getItem('adminSidebarOpen');
+    this.isSidebarOpen = storedSidebarState === null ? true : storedSidebarState === 'true';
   }
 
   connectedCallback() {
@@ -513,6 +621,11 @@ export class AdminDashboard extends LitElement {
     }
   }
 
+  toggleSidebar() {
+    this.isSidebarOpen = !this.isSidebarOpen;
+    localStorage.setItem('adminSidebarOpen', this.isSidebarOpen);
+  }
+
   render() {
     if (this.loading) {
       return html`
@@ -530,45 +643,79 @@ export class AdminDashboard extends LitElement {
     }
 
     return html`
-      <header>
-        <h1>Reservations</h1>
-        <div>
-          <button @click=${this.toggleAddForm} style="margin-right: 1rem;">Add Reservation</button>
-          <button @click=${this.fetchReservations} style="margin-right: 1rem; background: transparent; border: 1px solid #d4af37; color: #d4af37;">Refresh</button>
-          <span style="margin-right: 1rem; opacity: 0.7;">${this.user.email}</span>
-          <button @click=${this.handleLogout}>Logout</button>
-        </div>
-      </header>
-      <main>
-        <div class="dashboard-section heatmap-section">
-          <reservation-heatmap 
-            .reservations=${this.reservations}
-            .selectedDate=${this.selectedDate}
-            @date-selected=${this.handleDateSelected}
-          ></reservation-heatmap>
-        </div>
-        
-        ${this.selectedDate ? html`
-          <div class="action-row" style="padding: 1rem; display: flex; justify-content: flex-end; gap: 1rem;">
-            <button @click=${() => this.handleUnblockDay()} style="background: #4CAF50;">Unblock Day</button>
-            <button @click=${() => this.handleBlockDay()} style="background: #e57373;">Block Day</button>
+      <div class="layout-container">
+        <aside class="${this.isSidebarOpen ? 'open' : 'closed'}">
+          <div class="sidebar-header">
+            <div class="logo-area">
+               <span style="font-size: 1.5rem;">🔥</span>
+               <h1>Admin</h1>
+            </div>
+            <button class="toggle-btn" @click=${this.toggleSidebar}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
+            </button>
           </div>
-          <div class="dashboard-section" style="flex: 0 0 auto; min-height: auto;">
-            <timeslot-heatmap
-              .date=${this.selectedDate}
-              .reservations=${this.reservations}
-              @block-slot=${this.handleBlockSlot}
-            ></timeslot-heatmap>
-          </div>
-        ` : ''}
+          
+          <div class="sidebar-content">
+            <button class="sidebar-btn primary" @click=${this.toggleAddForm}>
+              <span style="font-size: 1.2rem;">+</span>
+              <span class="btn-text">New Reservation</span>
+            </button>
 
-        <div class="dashboard-section grid-section">
-          <data-grid 
-            .items=${this.filteredReservations}
-            @row-click=${this.handleRowClick}
-          ></data-grid>
-        </div>
-      </main>
+            <button class="sidebar-btn" @click=${this.fetchReservations}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 4v6h-6M1 20v-6h6" />
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+              </svg>
+              <span class="btn-text">Refresh Data</span>
+            </button>
+          </div>
+
+          <div class="user-info">
+            <div class="user-email" title="${this.user.email}">${this.user.email}</div>
+            <button class="sidebar-btn" @click=${this.handleLogout} style="color: #e57373;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              <span class="btn-text">Logout</span>
+            </button>
+          </div>
+        </aside>
+
+        <main>
+          <div class="dashboard-section heatmap-section">
+            <reservation-heatmap 
+              .reservations=${this.reservations}
+              .selectedDate=${this.selectedDate}
+              @date-selected=${this.handleDateSelected}
+            ></reservation-heatmap>
+          </div>
+          
+          ${this.selectedDate ? html`
+            <div class="action-row" style="padding: 0 0 1rem 0; display: flex; justify-content: flex-end; gap: 1rem;">
+              <button @click=${() => this.handleUnblockDay()} style="background: #4CAF50; padding: 0.5rem 1rem;">Unblock Day</button>
+              <button @click=${() => this.handleBlockDay()} style="background: #e57373; padding: 0.5rem 1rem;">Block Day</button>
+            </div>
+            <div class="dashboard-section" style="flex: 0 0 auto; min-height: auto;">
+              <timeslot-heatmap
+                .date=${this.selectedDate}
+                .reservations=${this.reservations}
+                @block-slot=${this.handleBlockSlot}
+              ></timeslot-heatmap>
+            </div>
+          ` : ''}
+
+          <div class="dashboard-section grid-section">
+            <data-grid 
+              .items=${this.filteredReservations}
+              @row-click=${this.handleRowClick}
+            ></data-grid>
+          </div>
+        </main>
+      </div>
 
       ${this.showAddForm ? html`
         <div class="modal-overlay" @click=${this.handleOverlayClick}>
@@ -623,8 +770,8 @@ export class AdminDashboard extends LitElement {
             ${this.renderBlockConfirmContent()}
 
             <div style="display: flex; justify-content: center; gap: 1rem; margin-top: 1.5rem;">
-              <button @click=${this.closeBlockConfirm} style="background: #ccc; color: #333;">Cancel</button>
-              <button @click=${this.confirmBlockSlot} style="background: ${this.blockAction === 'unblock' || this.blockAction === 'unblockDay' ? '#4CAF50' : '#e57373'}; color: white;">
+              <button @click=${this.closeBlockConfirm} style="background: #ccc; color: #333; padding: 0.5rem 1rem;">Cancel</button>
+              <button @click=${this.confirmBlockSlot} style="background: ${this.blockAction === 'unblock' || this.blockAction === 'unblockDay' ? '#4CAF50' : '#e57373'}; color: white; padding: 0.5rem 1rem;">
                 ${this.getBlockConfirmButtonText()}
               </button>
             </div>
