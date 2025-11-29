@@ -4,7 +4,11 @@ import { CONFIG } from './config.js';
 export class TimeslotHeatmap extends LitElement {
   static properties = {
     date: { type: String },
-    reservations: { type: Array }
+    reservations: { type: Array },
+    isDragging: { type: Boolean },
+    selectionStart: { type: String },
+    selectionEnd: { type: String },
+    selectedSlots: { type: Array }
   };
 
   static styles = css`
@@ -42,6 +46,7 @@ export class TimeslotHeatmap extends LitElement {
       align-items: center;
       justify-content: center;
       border: 1px solid transparent;
+      position: relative;
     }
 
     .slot:hover {
@@ -61,8 +66,22 @@ export class TimeslotHeatmap extends LitElement {
     }
 
     .blocked-text {
-      color: red;
+      /* Removed color: red */
       font-weight: bold;
+    }
+
+    .lock-icon {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 14px;
+      height: 14px;
+      color: #d32f2f;
+    }
+
+    .selected-slot {
+      border: 2px solid #2196F3 !important;
+      transform: scale(0.95);
     }
   `;
 
@@ -70,6 +89,10 @@ export class TimeslotHeatmap extends LitElement {
     super();
     this.date = null;
     this.reservations = [];
+    this.isDragging = false;
+    this.selectionStart = null;
+    this.selectionEnd = null;
+    this.selectedSlots = [];
   }
 
   getSlots() {
@@ -120,12 +143,78 @@ export class TimeslotHeatmap extends LitElement {
     return '#e57373'; // Red for full
   }
 
-  handleSlotClick(time, isBlocked, blockedId) {
-    this.dispatchEvent(new CustomEvent('block-slot', {
-      detail: { time, isBlocked, blockedId },
+  handleMouseDown(time) {
+    this.isDragging = true;
+    this.selectionStart = time;
+    this.selectionEnd = time;
+  }
+
+  handleMouseOver(time) {
+    if (this.isDragging) {
+      this.selectionEnd = time;
+    }
+  }
+
+  handleMouseUp() {
+    if (!this.isDragging) return;
+    this.isDragging = false;
+
+    const draggedSlots = this.getDraggedSlots();
+    let newSelection = [...this.selectedSlots];
+
+    if (draggedSlots.length === 1 && this.selectionStart === this.selectionEnd) {
+      // Single click: toggle
+      const slot = draggedSlots[0];
+      if (newSelection.includes(slot)) {
+        newSelection = newSelection.filter(s => s !== slot);
+      } else {
+        newSelection.push(slot);
+      }
+    } else {
+      // Drag range: merge (union)
+      draggedSlots.forEach(slot => {
+        if (!newSelection.includes(slot)) {
+          newSelection.push(slot);
+        }
+      });
+    }
+
+    this.selectedSlots = newSelection;
+    this.dispatchEvent(new CustomEvent('selection-changed', {
+      detail: { slots: this.selectedSlots },
       bubbles: true,
       composed: true
     }));
+
+    this.selectionStart = null;
+    this.selectionEnd = null;
+  }
+
+  getDraggedSlots() {
+    if (!this.selectionStart || !this.selectionEnd) return [];
+
+    const allSlots = this.getSlots();
+    const startIndex = allSlots.indexOf(this.selectionStart);
+    const endIndex = allSlots.indexOf(this.selectionEnd);
+
+    if (startIndex === -1 || endIndex === -1) return [];
+
+    const start = Math.min(startIndex, endIndex);
+    const end = Math.max(startIndex, endIndex);
+
+    return allSlots.slice(start, end + 1);
+  }
+
+  isSlotSelected(time) {
+    // Selected if in persistent selection OR in current drag range
+    if (this.selectedSlots.includes(time)) return true;
+
+    if (this.isDragging && this.selectionStart && this.selectionEnd) {
+      const dragged = this.getDraggedSlots();
+      return dragged.includes(time);
+    }
+
+    return false;
   }
 
   render() {
@@ -135,22 +224,33 @@ export class TimeslotHeatmap extends LitElement {
 
     return html`
       <h3>Timeslots for ${this.date}</h3>
-      <div class="slots-container">
+      <div 
+        class="slots-container"
+        @mouseleave=${this.handleMouseUp}
+      >
         ${slots.map(time => {
       const { totalGuests, percentage, isBlocked, blockedId } = this.getSlotOccupancy(time);
       const color = this.getColor(percentage, isBlocked);
+      const isSelected = this.isSlotSelected(time);
 
       return html`
             <div 
-              class="slot" 
+              class="slot ${isSelected ? 'selected-slot' : ''}" 
               style="background-color: ${color};"
-              @click=${() => this.handleSlotClick(time, isBlocked, blockedId)}
+              @mousedown=${() => this.handleMouseDown(time)}
+              @mouseover=${() => this.handleMouseOver(time)}
+              @mouseup=${this.handleMouseUp}
               title="${isBlocked ? 'Blocked' : `${totalGuests}/${CONFIG.MAX_CAPACITY_PER_SLOT} guests`}"
             >
               <span class="time ${isBlocked ? 'blocked-text' : ''}">${time}</span>
               <span class="info ${isBlocked ? 'blocked-text' : ''}">
                 ${totalGuests} pax
               </span>
+              ${isBlocked ? html`
+                <svg class="lock-icon" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                </svg>
+              ` : ''}
             </div>
           `;
     })}

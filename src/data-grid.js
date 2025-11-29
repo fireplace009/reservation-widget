@@ -58,6 +58,37 @@ export class DataGrid extends LitElement {
       margin-left: 0.5rem;
       font-size: 0.7rem;
     }
+
+    .cancelled {
+      opacity: 0.6;
+      background-color: #f9f9f9;
+      color: #888;
+      text-decoration: line-through;
+    }
+
+    .action-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.4rem;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .action-btn:hover {
+      background-color: #eee;
+    }
+
+    .btn-cancel {
+      color: #e57373;
+    }
+
+    .btn-uncancel {
+      color: #4CAF50;
+    }
   `;
 
   constructor() {
@@ -136,7 +167,11 @@ export class DataGrid extends LitElement {
         </thead>
         <tbody>
           ${this.sortedItems.map(item => html`
-            <tr @click=${() => this.dispatchEvent(new CustomEvent('row-click', { detail: item }))} style="cursor: pointer;">
+            <tr 
+              class="${item.status === 'cancelled' ? 'cancelled' : ''}"
+              @click=${() => this.dispatchEvent(new CustomEvent('row-click', { detail: item }))} 
+              style="cursor: pointer;"
+            >
               <td>${item.date} ${item.time}</td>
               <td>${item.guests}</td>
               <td>${item.email}</td>

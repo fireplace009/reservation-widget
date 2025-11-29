@@ -111,6 +111,15 @@ export class ReservationHeatmap extends LitElement {
     .empty-cell {
       background: transparent;
     }
+
+    .lock-icon {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 12px;
+      height: 12px;
+      color: #d32f2f;
+    }
   `;
 
   constructor() {
@@ -139,7 +148,7 @@ export class ReservationHeatmap extends LitElement {
     // Note: This simple string construction avoids timezone issues if we just want to match the string stored in DB
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-    const dayReservations = this.reservations.filter(r => r.date === dateStr);
+    const dayReservations = this.reservations.filter(r => r.date === dateStr && r.status !== 'cancelled');
     const totalGuests = dayReservations.reduce((sum, r) => sum + Number(r.guests), 0);
 
     // Check if fully blocked
@@ -226,8 +235,12 @@ export class ReservationHeatmap extends LitElement {
           @click=${() => isOpen ? this.handleDayClick(day) : null}
         >
           <span class="day-number" style="${isFullyBlocked ? 'font-weight: 900;' : ''}">${day}</span>
-          ${isOpen && totalGuests > 0 && !isFullyBlocked ? html`<span class="occupancy-info">${totalGuests} pax</span>` : ''}
-          ${isFullyBlocked ? html`<span class="occupancy-info" style="color: red;">BLOCKED</span>` : ''}
+          ${isOpen && totalGuests > 0 ? html`<span class="occupancy-info" style="${isFullyBlocked ? 'color: red;' : ''}">${totalGuests} pax</span>` : ''}
+          ${isFullyBlocked ? html`
+            <svg class="lock-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+            </svg>
+          ` : ''}
         </div>
       `);
     }

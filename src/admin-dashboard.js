@@ -17,11 +17,12 @@ export class AdminDashboard extends LitElement {
     showAddForm: { type: Boolean },
     selectedDate: { type: String },
     showBlockConfirm: { type: Boolean },
-    slotToBlock: { type: Object },
+    slotsToBlock: { type: Array },
     blockAction: { type: String },
     selectedReservation: { type: Object }, // For editing
     showEditModal: { type: Boolean },
-    isSidebarOpen: { type: Boolean }
+    isSidebarOpen: { type: Boolean },
+    currentSelection: { type: Array }
   };
 
   static styles = css`
@@ -303,12 +304,13 @@ export class AdminDashboard extends LitElement {
     this.showAddForm = false;
     this.selectedDate = null;
     this.showBlockConfirm = false;
-    this.slotToBlock = null;
+    this.slotsToBlock = [];
     this.selectedReservation = null;
     this.showEditModal = false;
     this.showEditModal = false;
     const storedSidebarState = localStorage.getItem('adminSidebarOpen');
     this.isSidebarOpen = storedSidebarState === null ? true : storedSidebarState === 'true';
+    this.currentSelection = [];
   }
 
   connectedCallback() {
@@ -381,17 +383,51 @@ export class AdminDashboard extends LitElement {
   }
 
   get filteredReservations() {
+    let filtered = this.reservations;
+
+    // Filter out blocked slots (internal use)
+    filtered = filtered.filter(r => r.type !== 'blocked');
+
     if (!this.selectedDate) {
-      return this.reservations;
+      return filtered;
     }
-    return this.reservations.filter(r => r.date === this.selectedDate);
+    return filtered.filter(r => r.date === this.selectedDate);
   }
 
-  async handleBlockSlot(e) {
-    const { time, isBlocked, blockedId } = e.detail;
+  handleSelectionChanged(e) {
+    this.currentSelection = e.detail.slots || [];
+  }
 
-    this.slotToBlock = { time, blockedId };
-    this.blockAction = isBlocked ? 'unblock' : 'block';
+  handleBatchAction() {
+    if (this.currentSelection.length === 0) return;
+    this.handleSlotsSelected({ detail: { slots: this.currentSelection } });
+  }
+
+  clearSelection() {
+    this.currentSelection = [];
+  }
+
+  async handleSlotsSelected(e) {
+    const { slots } = e.detail;
+    if (!slots || slots.length === 0) return;
+
+    // Determine action: if ANY of the selected slots are blocked, we unblock.
+    // Otherwise (all are free), we block.
+    const dayReservations = this.reservations.filter(r => r.date === this.selectedDate && r.status !== 'cancelled');
+
+    // Map slots to their current status
+    const slotsStatus = slots.map(time => {
+      const blockedReservation = dayReservations.find(r => r.time === time && r.type === 'blocked');
+      return {
+        time,
+        isBlocked: !!blockedReservation,
+        blockedId: blockedReservation ? blockedReservation.id : null
+      };
+    });
+
+    const anyBlocked = slotsStatus.some(s => s.isBlocked);
+    this.blockAction = anyBlocked ? 'unblock' : 'block';
+    this.slotsToBlock = slotsStatus;
     this.showBlockConfirm = true;
   }
 
@@ -408,32 +444,40 @@ export class AdminDashboard extends LitElement {
       return;
     }
 
-    if (!this.slotToBlock) return;
-
-    const { time, blockedId } = this.slotToBlock;
+    if (!this.slotsToBlock || this.slotsToBlock.length === 0) return;
 
     try {
+      const promises = [];
+
       if (this.blockAction === 'unblock') {
-        if (blockedId) {
-          await deleteReservation(blockedId);
-        }
+        // Unblock only the blocked ones
+        const slotsToUnblock = this.slotsToBlock.filter(s => s.isBlocked && s.blockedId);
+        slotsToUnblock.forEach(slot => {
+          promises.push(deleteReservation(slot.blockedId));
+        });
       } else {
-        await addReservation({
-          date: this.selectedDate,
-          time: time,
-          guests: 0, // Blocked slots now have 0 guests
-          name: 'BLOCKED',
-          email: 'admin@internal',
-          type: 'blocked'
+        // Block only the unblocked ones
+        const slotsToBlock = this.slotsToBlock.filter(s => !s.isBlocked);
+        slotsToBlock.forEach(slot => {
+          promises.push(addReservation({
+            date: this.selectedDate,
+            time: slot.time,
+            guests: 0,
+            name: 'BLOCKED',
+            email: 'admin@internal',
+            type: 'blocked'
+          }));
         });
       }
+
+      await Promise.all(promises);
 
       // Refresh
       this.fetchReservations();
       this.closeBlockConfirm();
     } catch (error) {
-      console.error('Error updating slot:', error);
-      alert(`Failed to ${this.blockAction} slot.`);
+      console.error('Error updating slots:', error);
+      alert(`Failed to ${this.blockAction} slots.`);
     }
   }
 
@@ -534,22 +578,28 @@ export class AdminDashboard extends LitElement {
         <p>This will remove all blocked slots and make them available again.</p>
       `;
     }
+    const count = this.slotsToBlock ? this.slotsToBlock.length : 0;
+    const slotsList = this.slotsToBlock ? this.slotsToBlock.map(s => s.time).join(', ') : '';
+
     return html`
-      <p>Are you sure you want to <strong>${this.blockAction === 'unblock' ? 'UNBLOCK' : 'BLOCK'}</strong> the slot at <strong>${this.slotToBlock?.time}</strong>?</p>
-      <p>${this.blockAction === 'unblock' ? 'This will make the slot available for bookings again.' : 'This will prevent further bookings for this time.'}</p>
+      <p>Are you sure you want to <strong>${this.blockAction === 'unblock' ? 'UNBLOCK' : 'BLOCK'}</strong> ${count} slot(s)?</p>
+      <p><strong>${slotsList}</strong></p>
+      <p>${this.blockAction === 'unblock' ? 'This will make the slots available for bookings again.' : 'This will prevent further bookings for these times.'}</p>
     `;
   }
 
   getBlockConfirmButtonText() {
     if (this.blockAction === 'blockDay') return 'Block Day';
     if (this.blockAction === 'unblockDay') return 'Unblock Day';
-    if (this.blockAction === 'unblock') return 'Unblock Slot';
-    return 'Block Slot';
+    if (this.blockAction === 'unblock') return 'Unblock Slots';
+    return 'Block Slots';
   }
 
   closeBlockConfirm() {
     this.showBlockConfirm = false;
-    this.slotToBlock = null;
+    this.slotsToBlock = [];
+    // Optionally clear selection after action
+    this.currentSelection = [];
   }
 
   closeEditModal() {
@@ -602,6 +652,34 @@ export class AdminDashboard extends LitElement {
     } catch (error) {
       console.error('Error cancelling reservation:', error);
       alert('Failed to cancel reservation: ' + error.message);
+    }
+  }
+
+  async handleCancelClick(e) {
+    const reservation = e.detail;
+    if (!reservation) return;
+
+    if (!confirm('Are you sure you want to cancel this reservation?')) return;
+
+    try {
+      await updateReservation(reservation.id, { status: 'cancelled' });
+      this.fetchReservations();
+    } catch (error) {
+      console.error('Error cancelling reservation:', error);
+      alert('Failed to cancel reservation: ' + error.message);
+    }
+  }
+
+  async handleUncancelClick(e) {
+    const reservation = e.detail;
+    if (!reservation) return;
+
+    try {
+      await updateReservation(reservation.id, { status: 'confirmed' });
+      this.fetchReservations();
+    } catch (error) {
+      console.error('Error restoring reservation:', error);
+      alert('Failed to restore reservation: ' + error.message);
     }
   }
 
@@ -695,15 +773,30 @@ export class AdminDashboard extends LitElement {
           </div>
           
           ${this.selectedDate ? html`
-            <div class="action-row" style="padding: 0 0 1rem 0; display: flex; justify-content: flex-end; gap: 1rem;">
-              <button @click=${() => this.handleUnblockDay()} style="background: #4CAF50; padding: 0.5rem 1rem;">Unblock Day</button>
-              <button @click=${() => this.handleBlockDay()} style="background: #e57373; padding: 0.5rem 1rem;">Block Day</button>
+            <div class="action-row" style="padding: 0 0 1rem 0; display: flex; justify-content: space-between; align-items: center; gap: 1rem; min-height: 40px;">
+              ${this.currentSelection.length > 0 ? html`
+                <div style="display: flex; align-items: center; gap: 1rem; background: #e3f2fd; padding: 0.5rem 1rem; border-radius: 4px;">
+                  <span style="font-weight: 500; color: #1565c0;">${this.currentSelection.length} selected</span>
+                  <button @click=${this.handleBatchAction} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
+                    Action
+                  </button>
+                  <button @click=${this.clearSelection} style="background: transparent; color: #666; padding: 0.4rem; border: 1px solid #ccc;">
+                    Clear
+                  </button>
+                </div>
+              ` : html`<div></div>`}
+              
+              <div style="display: flex; gap: 1rem;">
+                <button @click=${() => this.handleUnblockDay()} style="background: #4CAF50; padding: 0.5rem 1rem;">Unblock Day</button>
+                <button @click=${() => this.handleBlockDay()} style="background: #e57373; padding: 0.5rem 1rem;">Block Day</button>
+              </div>
             </div>
             <div class="dashboard-section" style="flex: 0 0 auto; min-height: auto;">
               <timeslot-heatmap
                 .date=${this.selectedDate}
                 .reservations=${this.reservations}
-                @block-slot=${this.handleBlockSlot}
+                .selectedSlots=${this.currentSelection}
+                @selection-changed=${this.handleSelectionChanged}
               ></timeslot-heatmap>
             </div>
           ` : ''}
@@ -712,6 +805,8 @@ export class AdminDashboard extends LitElement {
             <data-grid 
               .items=${this.filteredReservations}
               @row-click=${this.handleRowClick}
+              @cancel-click=${this.handleCancelClick}
+              @uncancel-click=${this.handleUncancelClick}
             ></data-grid>
           </div>
         </main>
@@ -765,7 +860,7 @@ export class AdminDashboard extends LitElement {
       ${this.showBlockConfirm ? html`
         <div class="modal-overlay">
           <div class="modal-content" style="max-width: 400px; text-align: center;">
-            <h3>${this.blockAction === 'blockDay' ? 'Block Entire Day?' : (this.blockAction === 'unblockDay' ? 'Unblock Entire Day?' : (this.blockAction === 'unblock' ? 'Unblock Slot?' : 'Block Slot?'))}</h3>
+            <h3>${this.blockAction === 'blockDay' ? 'Block Entire Day?' : (this.blockAction === 'unblockDay' ? 'Unblock Entire Day?' : (this.blockAction === 'unblock' ? 'Unblock Slots?' : 'Block Slots?'))}</h3>
             
             ${this.renderBlockConfirmContent()}
 

@@ -14,6 +14,7 @@ export class ReservationWidget extends LitElement {
     errorMessage: { type: String },
     availableSlots: { type: Array },
     bookedCounts: { type: Object },
+    blockedSlots: { type: Array },
     locale: { type: String }
   };
 
@@ -155,6 +156,7 @@ export class ReservationWidget extends LitElement {
     this.errorMessage = '';
     this.availableSlots = [];
     this.bookedCounts = {};
+    this.blockedSlots = [];
     this.locale = getLocale();
   }
 
@@ -205,12 +207,18 @@ export class ReservationWidget extends LitElement {
     try {
       const reservations = await getReservations(date);
       const counts = {};
+      const blocked = [];
 
       reservations.forEach(r => {
-        counts[r.time] = (counts[r.time] || 0) + r.guests;
+        if (r.type === 'blocked') {
+          blocked.push(r.time);
+        } else {
+          counts[r.time] = (counts[r.time] || 0) + r.guests;
+        }
       });
 
       this.bookedCounts = counts;
+      this.blockedSlots = blocked;
       this.requestUpdate();
     } catch (error) {
       console.error('Error fetching availability:', error);
@@ -320,9 +328,17 @@ export class ReservationWidget extends LitElement {
               <option value="" disabled selected>${t('select_time', this.locale)}</option>
               ${this.timeSlots.map(slot => {
       const booked = this.bookedCounts[slot] || 0;
+      const isBlocked = this.blockedSlots.includes(slot);
       const remaining = CONFIG.MAX_CAPACITY_PER_SLOT - booked;
-      const isDisabled = this.guests > remaining;
-      const label = isDisabled ? t('slot_full', this.locale, { time: slot }) : slot;
+      const isDisabled = isBlocked || this.guests > remaining;
+
+      let label = slot;
+      if (isBlocked) {
+        label = t('slot_full', this.locale, { time: slot }); // Or just "Full" if prefer
+      } else if (isDisabled) {
+        label = t('slot_full', this.locale, { time: slot });
+      }
+
       return html`<option value="${slot}" ?disabled=${isDisabled}>${label}</option>`;
     })}
             </select>
