@@ -22,7 +22,9 @@ export class AdminDashboard extends LitElement {
     selectedReservation: { type: Object }, // For editing
     showEditModal: { type: Boolean },
     isSidebarOpen: { type: Boolean },
-    currentSelection: { type: Array }
+    currentSelection: { type: Array },
+    selectedDaysForBlocking: { type: Array },
+    blockDescription: { type: String }
   };
 
   static styles = css`
@@ -311,6 +313,8 @@ export class AdminDashboard extends LitElement {
     const storedSidebarState = localStorage.getItem('adminSidebarOpen');
     this.isSidebarOpen = storedSidebarState === null ? true : storedSidebarState === 'true';
     this.currentSelection = [];
+    this.selectedDaysForBlocking = [];
+    this.blockDescription = '';
   }
 
   connectedCallback() {
@@ -380,6 +384,10 @@ export class AdminDashboard extends LitElement {
 
   handleDateSelected(e) {
     this.selectedDate = e.detail.date;
+  }
+
+  handleDaysSelected(e) {
+    this.selectedDaysForBlocking = e.detail.dates || [];
   }
 
   handleRowClick(e) {
@@ -498,6 +506,12 @@ export class AdminDashboard extends LitElement {
     this.loading = true;
     try {
       console.log('Starting Block Day process...');
+
+      // Determine which days to block
+      const daysToBlock = this.selectedDaysForBlocking.length > 0
+        ? this.selectedDaysForBlocking
+        : [this.selectedDate];
+
       // Generate all slots
       const [startHour, startMinute] = CONFIG.OPEN_HOURS.start.split(':').map(Number);
       const [endHour, endMinute] = CONFIG.OPEN_HOURS.end.split(':').map(Number);
@@ -512,28 +526,36 @@ export class AdminDashboard extends LitElement {
         current.setMinutes(current.getMinutes() + CONFIG.SLOT_DURATION);
       }
 
-      // Get existing reservations for the day
-      const dayReservations = this.reservations.filter(r => r.date === this.selectedDate && r.status !== 'cancelled');
-
-      // Create blocked reservations for slots that aren't already blocked
       const promises = [];
-      for (const time of slots) {
-        const isBlocked = dayReservations.some(r => r.time === time && r.type === 'blocked');
-        if (!isBlocked) {
-          promises.push(addReservation({
-            date: this.selectedDate,
-            time: time,
-            guests: 0,
-            name: 'BLOCKED',
-            email: 'admin@internal',
-            type: 'blocked'
-          }));
+
+      // Block all slots for each selected day
+      for (const date of daysToBlock) {
+        const dayReservations = this.reservations.filter(r => r.date === date && r.status !== 'cancelled');
+
+        for (const time of slots) {
+          const isBlocked = dayReservations.some(r => r.time === time && r.type === 'blocked');
+          if (!isBlocked) {
+            promises.push(addReservation({
+              date: date,
+              time: time,
+              guests: 0,
+              name: 'BLOCKED',
+              email: 'admin@internal',
+              type: 'blocked',
+              blockDescription: this.blockDescription || ''
+            }));
+          }
         }
       }
 
       await Promise.all(promises);
       await this.fetchReservations();
-      alert('Day blocked successfully');
+
+      const dayCount = daysToBlock.length;
+      alert(`${dayCount} day(s) blocked successfully`);
+
+      // Clear selection
+      this.selectedDaysForBlocking = [];
     } catch (error) {
       console.error('Error blocking day:', error);
       alert('Failed to block day');
@@ -554,14 +576,28 @@ export class AdminDashboard extends LitElement {
     this.loading = true;
     try {
       console.log('Starting Unblock Day process...');
-      // Get existing reservations for the day
-      const dayReservations = this.reservations.filter(r => r.date === this.selectedDate && r.type === 'blocked');
 
-      const promises = dayReservations.map(r => deleteReservation(r.id));
+      // Determine which days to unblock
+      const daysToUnblock = this.selectedDaysForBlocking.length > 0
+        ? this.selectedDaysForBlocking
+        : [this.selectedDate];
+
+      const promises = [];
+
+      // Unblock all slots for each selected day
+      for (const date of daysToUnblock) {
+        const dayReservations = this.reservations.filter(r => r.date === date && r.type === 'blocked');
+        dayReservations.forEach(r => promises.push(deleteReservation(r.id)));
+      }
+
       await Promise.all(promises);
-
       await this.fetchReservations();
-      alert('Day unblocked successfully');
+
+      const dayCount = daysToUnblock.length;
+      alert(`${dayCount} day(s) unblocked successfully`);
+
+      // Clear selection
+      this.selectedDaysForBlocking = [];
     } catch (error) {
       console.error('Error unblocking day:', error);
       alert('Failed to unblock day');
@@ -572,14 +608,36 @@ export class AdminDashboard extends LitElement {
 
   renderBlockConfirmContent() {
     if (this.blockAction === 'blockDay') {
+      const dayCount = this.selectedDaysForBlocking.length > 0 ? this.selectedDaysForBlocking.length : 1;
+      const daysList = this.selectedDaysForBlocking.length > 0
+        ? this.selectedDaysForBlocking.join(', ')
+        : this.selectedDate;
+
       return html`
-        <p>Are you sure you want to <strong>BLOCK ALL SLOTS</strong> for <strong>${this.selectedDate}</strong>?</p>
-        <p>This will prevent any new bookings for the entire day.</p>
+        <p>Are you sure you want to <strong>BLOCK ALL SLOTS</strong> for <strong>${dayCount} day(s)</strong>?</p>
+        <p style="font-size: 0.9rem; color: #666;">${daysList}</p>
+        <p>This will prevent any new bookings for the selected day(s).</p>
+        <div class="form-group">
+          <label for="blockDescription">Description (optional):</label>
+          <textarea 
+            id="blockDescription" 
+            .value=${this.blockDescription}
+            @input=${(e) => this.blockDescription = e.target.value}
+            placeholder="e.g., Closed for holidays"
+            rows="3"
+          ></textarea>
+        </div>
       `;
     }
     if (this.blockAction === 'unblockDay') {
+      const dayCount = this.selectedDaysForBlocking.length > 0 ? this.selectedDaysForBlocking.length : 1;
+      const daysList = this.selectedDaysForBlocking.length > 0
+        ? this.selectedDaysForBlocking.join(', ')
+        : this.selectedDate;
+
       return html`
-        <p>Are you sure you want to <strong>UNBLOCK ALL SLOTS</strong> for <strong>${this.selectedDate}</strong>?</p>
+        <p>Are you sure you want to <strong>UNBLOCK ALL SLOTS</strong> for <strong>${dayCount} day(s)</strong>?</p>
+        <p style="font-size: 0.9rem; color: #666;">${daysList}</p>
         <p>This will remove all blocked slots and make them available again.</p>
       `;
     }
@@ -773,7 +831,9 @@ export class AdminDashboard extends LitElement {
             <reservation-heatmap 
               .reservations=${this.reservations}
               .selectedDate=${this.selectedDate}
+              .selectedDaysForBlocking=${this.selectedDaysForBlocking}
               @date-selected=${this.handleDateSelected}
+              @days-selected=${this.handleDaysSelected}
             ></reservation-heatmap>
           </div>
           

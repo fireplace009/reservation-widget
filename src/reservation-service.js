@@ -74,6 +74,7 @@ export const addReservation = async (reservation) => {
         email: reservation.email,
         phone: reservation.phone || '',
         description: reservation.description || '',
+        blockDescription: reservation.blockDescription || '', // Add this line
         status: 'confirmed', // 'confirmed', 'cancelled'
         type: reservation.type || 'regular', // 'regular' or 'blocked'
         createdAt: new Date().toISOString()

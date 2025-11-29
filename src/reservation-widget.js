@@ -15,6 +15,7 @@ export class ReservationWidget extends LitElement {
     availableSlots: { type: Array },
     bookedCounts: { type: Object },
     blockedSlots: { type: Array },
+    blockDescription: { type: String },
     locale: { type: String }
   };
 
@@ -157,6 +158,7 @@ export class ReservationWidget extends LitElement {
     this.availableSlots = [];
     this.bookedCounts = {};
     this.blockedSlots = [];
+    this.blockDescription = '';
     this.locale = getLocale();
   }
 
@@ -209,12 +211,27 @@ export class ReservationWidget extends LitElement {
     return false; // No available slots
   }
 
+  get canReserve() {
+    if (!this.date) return true;
+    return this.isDayOpen(this.date) && this.hasAvailableSlots();
+  }
+
   async handleInput(e) {
     const { name, value } = e.target;
     this[name] = value;
 
     if (name === 'date') {
-      if (!this.isDayOpen(value)) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedDate = new Date(value);
+      selectedDate.setHours(0, 0, 0, 0);
+
+      if (selectedDate < today) {
+        this.errorMessage = "Reservations cannot be made in the past.";
+        this.time = '';
+        this.bookedCounts = {};
+        this.blockedSlots = [];
+      } else if (!this.isDayOpen(value)) {
         this.errorMessage = t('closed_day', this.locale);
         this.time = '';
         this.bookedCounts = {};
@@ -225,7 +242,12 @@ export class ReservationWidget extends LitElement {
 
         // Check if there are any available slots
         if (!this.hasAvailableSlots()) {
-          this.errorMessage = 'No available timeslots for this date. All slots are fully booked or blocked.';
+          // Show block description if available, otherwise generic message
+          if (this.blockDescription) {
+            this.errorMessage = this.blockDescription;
+          } else {
+            this.errorMessage = 'No available timeslots for this date. All slots are fully booked or blocked.';
+          }
           this.time = '';
         }
       }
@@ -237,10 +259,15 @@ export class ReservationWidget extends LitElement {
       const reservations = await getReservations(date);
       const counts = {};
       const blocked = [];
+      let blockDesc = '';
 
       reservations.forEach(r => {
         if (r.type === 'blocked') {
           blocked.push(r.time);
+          // Get block description from first blocked slot
+          if (!blockDesc && r.blockDescription) {
+            blockDesc = r.blockDescription;
+          }
         } else {
           counts[r.time] = (counts[r.time] || 0) + r.guests;
         }
@@ -248,6 +275,7 @@ export class ReservationWidget extends LitElement {
 
       this.bookedCounts = counts;
       this.blockedSlots = blocked;
+      this.blockDescription = blockDesc;
       this.requestUpdate();
     } catch (error) {
       console.error('Error fetching availability:', error);
@@ -348,14 +376,25 @@ export class ReservationWidget extends LitElement {
         <form @submit=${this.handleSubmit}>
           <div class="form-group">
             <label for="date">${t('date', this.locale)}</label>
-            <input type="date" id="date" name="date" .value=${this.date} @input=${this.handleInput} required />
+            <input 
+              type="date" 
+              id="date" 
+              name="date" 
+              .value=${this.date} 
+              @input=${this.handleInput} 
+              min="${new Date().toISOString().split('T')[0]}"
+              required 
+            />
           </div>
 
-          <div class="form-group">
-            <label for="time">${t('time', this.locale)}</label>
-            <select id="time" name="time" .value=${this.time} @change=${this.handleInput} required ?disabled=${!this.date || !!this.errorMessage}>
-              <option value="" disabled selected>${t('select_time', this.locale)}</option>
-              ${this.timeSlots.map(slot => {
+
+
+          ${this.canReserve ? html`
+            <div class="form-group">
+              <label for="time">${t('time', this.locale)}</label>
+              <select id="time" name="time" .value=${this.time} @change=${this.handleInput} required ?disabled=${!this.date || !!this.errorMessage}>
+                <option value="" disabled selected>${t('select_time', this.locale)}</option>
+                ${this.timeSlots.map(slot => {
       const booked = this.bookedCounts[slot] || 0;
       const isBlocked = this.blockedSlots.includes(slot);
       const remaining = CONFIG.MAX_CAPACITY_PER_SLOT - booked;
@@ -370,39 +409,42 @@ export class ReservationWidget extends LitElement {
 
       return html`<option value="${slot}" ?disabled=${isDisabled}>${label}</option>`;
     })}
-            </select>
-          </div>
+              </select>
+            </div>
 
-          <div class="form-group">
-            <label for="guests">${t('guests', this.locale)}</label>
-            <input type="number" id="guests" name="guests" min="1" max="10" .value=${this.guests} @input=${this.handleInput} required />
-          </div>
+            <div class="form-group">
+              <label for="guests">${t('guests', this.locale)}</label>
+              <input type="number" id="guests" name="guests" min="1" max="10" .value=${this.guests} @input=${this.handleInput} required />
+            </div>
 
-          <div class="form-group">
-            <label for="name">${t('name', this.locale)}</label>
-            <input type="text" id="name" name="name" placeholder="${t('placeholder_name', this.locale)}" .value=${this.name} @input=${this.handleInput} required />
-          </div>
+            <div class="form-group">
+              <label for="name">${t('name', this.locale)}</label>
+              <input type="text" id="name" name="name" placeholder="${t('placeholder_name', this.locale)}" .value=${this.name} @input=${this.handleInput} required />
+            </div>
 
-          <div class="form-group">
-            <label for="email">${t('email', this.locale)}</label>
-            <input type="email" id="email" name="email" placeholder="${t('placeholder_email', this.locale)}" .value=${this.email} @input=${this.handleInput} required />
-          </div>
+            <div class="form-group">
+              <label for="email">${t('email', this.locale)}</label>
+              <input type="email" id="email" name="email" placeholder="${t('placeholder_email', this.locale)}" .value=${this.email} @input=${this.handleInput} required />
+            </div>
 
-          <div class="form-group">
-            <label for="phone">${t('phone', this.locale)}</label>
-            <input type="tel" id="phone" name="phone" placeholder="${t('placeholder_phone', this.locale)}" .value=${this.phone} @input=${this.handleInput} />
-          </div>
+            <div class="form-group">
+              <label for="phone">${t('phone', this.locale)}</label>
+              <input type="tel" id="phone" name="phone" placeholder="${t('placeholder_phone', this.locale)}" .value=${this.phone} @input=${this.handleInput} />
+            </div>
 
-          <div class="form-group">
-            <label for="description">${t('description', this.locale)}</label>
-            <input type="text" id="description" name="description" placeholder="${t('placeholder_description', this.locale)}" .value=${this.description} @input=${this.handleInput} />
-          </div>
+            <div class="form-group">
+              <label for="description">${t('description', this.locale)}</label>
+              <input type="text" id="description" name="description" placeholder="${t('placeholder_description', this.locale)}" .value=${this.description} @input=${this.handleInput} />
+            </div>
+          ` : ''}
 
           ${this.state === 'error' || this.errorMessage ? html`<div class="message error">${this.errorMessage}</div>` : ''}
 
-          <button type="submit" ?disabled=${this.state === 'loading' || !!this.errorMessage}>
-            ${this.state === 'loading' ? html`<div class="spinner"></div>` : t('confirm_reservation', this.locale)}
-          </button>
+          ${this.canReserve ? html`
+            <button type="submit" ?disabled=${this.state === 'loading' || !!this.errorMessage}>
+              ${this.state === 'loading' ? html`<div class="spinner"></div>` : t('confirm_reservation', this.locale)}
+            </button>
+          ` : ''}
         </form>
       </div>
     `;

@@ -5,7 +5,8 @@ export class ReservationHeatmap extends LitElement {
   static properties = {
     reservations: { type: Array },
     currentDate: { type: Object },
-    selectedDate: { type: String } // 'YYYY-MM-DD'
+    selectedDate: { type: String }, // 'YYYY-MM-DD' - for viewing details
+    selectedDaysForBlocking: { type: Array } // Array of dates selected for blocking
   };
 
   static styles = css`
@@ -120,6 +121,11 @@ export class ReservationHeatmap extends LitElement {
       height: 12px;
       color: #d32f2f;
     }
+
+    .day-cell.selected-for-blocking {
+      border: 2px solid #2196F3 !important;
+      box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+    }
   `;
 
   constructor() {
@@ -127,6 +133,7 @@ export class ReservationHeatmap extends LitElement {
     this.reservations = [];
     this.currentDate = new Date();
     this.selectedDate = null;
+    this.selectedDaysForBlocking = [];
   }
 
   getDaysInMonth(date) {
@@ -193,13 +200,37 @@ export class ReservationHeatmap extends LitElement {
     this.currentDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1);
   }
 
-  handleDayClick(day) {
+  handleDayClick(day, event) {
     const year = this.currentDate.getFullYear();
     const month = this.currentDate.getMonth();
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-    this.dispatchEvent(new CustomEvent('date-selected', {
-      detail: { date: dateStr }
+    // Check if Ctrl/Cmd key is pressed for multi-selection
+    if (event && (event.ctrlKey || event.metaKey)) {
+      this.toggleDaySelection(dateStr);
+    } else {
+      // Regular click - select for viewing details
+      this.dispatchEvent(new CustomEvent('date-selected', {
+        detail: { date: dateStr }
+      }));
+    }
+  }
+
+  toggleDaySelection(dateStr) {
+    const index = this.selectedDaysForBlocking.indexOf(dateStr);
+    if (index > -1) {
+      // Remove from selection
+      this.selectedDaysForBlocking = this.selectedDaysForBlocking.filter(d => d !== dateStr);
+    } else {
+      // Add to selection
+      this.selectedDaysForBlocking = [...this.selectedDaysForBlocking, dateStr];
+    }
+
+    // Emit event with selected days
+    this.dispatchEvent(new CustomEvent('days-selected', {
+      detail: { dates: this.selectedDaysForBlocking },
+      bubbles: true,
+      composed: true
     }));
   }
 
@@ -227,12 +258,14 @@ export class ReservationHeatmap extends LitElement {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const isSelected = this.selectedDate === dateStr;
 
+      const isSelectedForBlocking = this.selectedDaysForBlocking.includes(dateStr);
+
       dayCells.push(html`
         <div 
-          class="day-cell ${!isOpen ? 'disabled' : ''} ${isSelected ? 'selected' : ''}" 
+          class="day-cell ${!isOpen ? 'disabled' : ''} ${isSelected ? 'selected' : ''} ${isSelectedForBlocking ? 'selected-for-blocking' : ''}" 
           style="background-color: ${!isOpen ? '' : color}; color: ${isFullyBlocked ? 'red' : 'inherit'};" 
           title="${!isOpen ? 'Closed' : (isFullyBlocked ? 'Fully Blocked' : `${totalGuests} guests`)}"
-          @click=${() => isOpen ? this.handleDayClick(day) : null}
+          @click=${(e) => isOpen ? this.handleDayClick(day, e) : null}
         >
           <span class="day-number" style="${isFullyBlocked ? 'font-weight: 900;' : ''}">${day}</span>
           ${isOpen && totalGuests > 0 ? html`<span class="occupancy-info" style="${isFullyBlocked ? 'color: red;' : ''}">${totalGuests} pax</span>` : ''}
