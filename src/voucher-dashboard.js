@@ -3,18 +3,19 @@ import { getAllVouchers, getVoucherByCode, redeemVoucher } from './voucher-servi
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
 export class VoucherDashboard extends LitElement {
-    static properties = {
-        vouchers: { type: Array },
-        scannedVoucher: { type: Object },
-        manualCode: { type: String },
-        redeemAmount: { type: Number },
-        isScanning: { type: Boolean },
-        loading: { type: Boolean },
-        error: { type: String },
-        successMessage: { type: String }
-    };
+  static properties = {
+    vouchers: { type: Array },
+    scannedVoucher: { type: Object },
+    manualCode: { type: String },
+    redeemAmount: { type: Number },
+    isScanning: { type: Boolean },
+    loading: { type: Boolean },
+    error: { type: String },
+    successMessage: { type: String },
+    selectedVoucherForHistory: { type: Object }
+  };
 
-    static styles = css`
+  static styles = css`
     :host {
       display: block;
       padding: 1rem;
@@ -22,15 +23,9 @@ export class VoucherDashboard extends LitElement {
     }
 
     .dashboard-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
+      flex-direction: column;
       gap: 2rem;
-    }
-
-    @media (max-width: 768px) {
-      .dashboard-grid {
-        grid-template-columns: 1fr;
-      }
     }
 
     .card {
@@ -60,6 +55,15 @@ export class VoucherDashboard extends LitElement {
     th {
       background-color: #f9f9f9;
       font-weight: 600;
+    }
+
+    tbody tr {
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    tbody tr:hover {
+      background-color: #f5f5f5;
     }
 
     input {
@@ -111,128 +115,175 @@ export class VoucherDashboard extends LitElement {
       border-bottom: 1px solid #eee;
       padding: 0.5rem 0;
     }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .close-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: transparent;
+      color: #333;
+      font-size: 2rem;
+      padding: 0.5rem;
+      cursor: pointer;
+      line-height: 1;
+      border: none;
+    }
   `;
 
-    constructor() {
-        super();
-        this.vouchers = [];
-        this.scannedVoucher = null;
-        this.manualCode = '';
-        this.redeemAmount = 0;
-        this.isScanning = false;
-        this.loading = false;
-        this.error = '';
-        this.successMessage = '';
-        this.scanner = null;
-    }
+  constructor() {
+    super();
+    this.vouchers = [];
+    this.scannedVoucher = null;
+    this.manualCode = '';
+    this.redeemAmount = 0;
+    this.isScanning = false;
+    this.loading = false;
+    this.error = '';
+    this.successMessage = '';
+    this.scanner = null;
+    this.selectedVoucherForHistory = null;
+  }
 
-    connectedCallback() {
-        super.connectedCallback();
-        this.fetchVouchers();
-    }
+  connectedCallback() {
+    super.connectedCallback();
+    this.fetchVouchers();
+  }
 
-    async fetchVouchers() {
-        this.loading = true;
-        try {
-            this.vouchers = await getAllVouchers();
-        } catch (err) {
-            console.error('Error fetching vouchers:', err);
-            this.error = 'Failed to load vouchers';
-        } finally {
-            this.loading = false;
-        }
+  async fetchVouchers() {
+    this.loading = true;
+    try {
+      this.vouchers = await getAllVouchers();
+    } catch (err) {
+      console.error('Error fetching vouchers:', err);
+      this.error = 'Failed to load vouchers';
+    } finally {
+      this.loading = false;
     }
+  }
 
-    startScanner() {
-        this.isScanning = true;
-        // Wait for render
-        setTimeout(() => {
-            this.scanner = new Html5QrcodeScanner(
-                "reader",
-                { fps: 10, qrbox: { width: 250, height: 250 } },
+  startScanner() {
+    this.isScanning = true;
+    // Wait for render
+    setTimeout(() => {
+      this.scanner = new Html5QrcodeScanner(
+        "reader",
+        { fps: 10, qrbox: { width: 250, height: 250 } },
         /* verbose= */ false
-            );
-            this.scanner.render(this.onScanSuccess.bind(this), this.onScanFailure.bind(this));
-        }, 0);
+      );
+      this.scanner.render(this.onScanSuccess.bind(this), this.onScanFailure.bind(this));
+    }, 0);
+  }
+
+  stopScanner() {
+    if (this.scanner) {
+      this.scanner.clear().catch(error => {
+        console.error("Failed to clear html5-qrcode scanner. ", error);
+      });
+      this.scanner = null;
     }
+    this.isScanning = false;
+  }
 
-    stopScanner() {
-        if (this.scanner) {
-            this.scanner.clear().catch(error => {
-                console.error("Failed to clear html5-qrcode scanner. ", error);
-            });
-            this.scanner = null;
-        }
-        this.isScanning = false;
+  onScanSuccess(decodedText, decodedResult) {
+    // Handle the scanned code as you like, for example:
+    console.log(`Code matched = ${decodedText}`, decodedResult);
+    this.stopScanner();
+    this.handleVoucherCode(decodedText);
+  }
+
+  onScanFailure(error) {
+    // handle scan failure, usually better to ignore and keep scanning.
+    // console.warn(`Code scan error = ${error}`);
+  }
+
+  async handleManualEntry() {
+    if (!this.manualCode) return;
+    await this.handleVoucherCode(this.manualCode);
+  }
+
+  async handleVoucherCode(code) {
+    this.loading = true;
+    this.error = '';
+    this.scannedVoucher = null;
+    this.successMessage = '';
+
+    try {
+      const voucher = await getVoucherByCode(code);
+      if (voucher) {
+        this.scannedVoucher = voucher;
+      } else {
+        this.error = 'Voucher not found';
+      }
+    } catch (err) {
+      console.error('Error fetching voucher:', err);
+      this.error = 'Error fetching voucher details';
+    } finally {
+      this.loading = false;
     }
+  }
 
-    onScanSuccess(decodedText, decodedResult) {
-        // Handle the scanned code as you like, for example:
-        console.log(`Code matched = ${decodedText}`, decodedResult);
-        this.stopScanner();
-        this.handleVoucherCode(decodedText);
+  async handleRedeem() {
+    if (!this.scannedVoucher || !this.redeemAmount) return;
+
+    this.loading = true;
+    this.error = '';
+    this.successMessage = '';
+
+    try {
+      const result = await redeemVoucher(this.scannedVoucher.code, Number(this.redeemAmount));
+      this.successMessage = `Successfully redeemed €${this.redeemAmount}. New balance: €${result.newBalance}`;
+
+      // Refresh voucher details
+      await this.handleVoucherCode(this.scannedVoucher.code);
+      // Refresh list
+      await this.fetchVouchers();
+
+      this.redeemAmount = 0;
+    } catch (err) {
+      console.error('Redemption failed:', err);
+      this.error = err.message || 'Redemption failed';
+    } finally {
+      this.loading = false;
     }
+  }
 
-    onScanFailure(error) {
-        // handle scan failure, usually better to ignore and keep scanning.
-        // console.warn(`Code scan error = ${error}`);
-    }
+  handleVoucherClick(voucher) {
+    this.selectedVoucherForHistory = voucher;
+  }
 
-    async handleManualEntry() {
-        if (!this.manualCode) return;
-        await this.handleVoucherCode(this.manualCode);
-    }
+  closeHistoryModal() {
+    this.selectedVoucherForHistory = null;
+  }
 
-    async handleVoucherCode(code) {
-        this.loading = true;
-        this.error = '';
-        this.scannedVoucher = null;
-        this.successMessage = '';
-
-        try {
-            const voucher = await getVoucherByCode(code);
-            if (voucher) {
-                this.scannedVoucher = voucher;
-            } else {
-                this.error = 'Voucher not found';
-            }
-        } catch (err) {
-            console.error('Error fetching voucher:', err);
-            this.error = 'Error fetching voucher details';
-        } finally {
-            this.loading = false;
-        }
-    }
-
-    async handleRedeem() {
-        if (!this.scannedVoucher || !this.redeemAmount) return;
-
-        this.loading = true;
-        this.error = '';
-        this.successMessage = '';
-
-        try {
-            const result = await redeemVoucher(this.scannedVoucher.code, Number(this.redeemAmount));
-            this.successMessage = `Successfully redeemed €${this.redeemAmount}. New balance: €${result.newBalance}`;
-
-            // Refresh voucher details
-            await this.handleVoucherCode(this.scannedVoucher.code);
-            // Refresh list
-            await this.fetchVouchers();
-
-            this.redeemAmount = 0;
-        } catch (err) {
-            console.error('Redemption failed:', err);
-            this.error = err.message || 'Redemption failed';
-        } finally {
-            this.loading = false;
-        }
-    }
-
-    render() {
-        return html`
+  render() {
+    return html`
       <div class="dashboard-grid">
-        <!-- Left Column: Scanner & Redemption -->
+        <!-- Scanner & Redemption Section -->
         <div>
           <div class="card">
             <h2>Scan Voucher</h2>
@@ -290,20 +341,20 @@ export class VoucherDashboard extends LitElement {
 
               <h3>History</h3>
               ${this.scannedVoucher.history && this.scannedVoucher.history.length > 0 ?
-                    this.scannedVoucher.history.map(h => html`
+          this.scannedVoucher.history.map(h => html`
                   <div class="history-item">
                     ${new Date(h.date).toLocaleString()}: ${h.type === 'redemption' ? 'Redeemed' : 'Purchased'} €${h.amount}
                   </div>
                 `) :
-                    html`<p>No history yet.</p>`
-                }
+          html`<p>No history yet.</p>`
+        }
             </div>
           ` : ''}
           
           ${this.error && !this.scannedVoucher ? html`<div class="card error">${this.error}</div>` : ''}
         </div>
 
-        <!-- Right Column: List of Vouchers -->
+        <!-- List of Vouchers -->
         <div>
           <div class="card">
             <h2>Sold Vouchers</h2>
@@ -320,7 +371,7 @@ export class VoucherDashboard extends LitElement {
               </thead>
               <tbody>
                 ${this.vouchers.map(v => html`
-                  <tr>
+                  <tr @click=${() => this.handleVoucherClick(v)}>
                     <td>${new Date(v.createdAt).toLocaleDateString()}</td>
                     <td>${v.name}</td>
                     <td>€${v.initialAmount}</td>
@@ -333,8 +384,36 @@ export class VoucherDashboard extends LitElement {
           </div>
         </div>
       </div>
+
+      <!-- History Modal -->
+      ${this.selectedVoucherForHistory ? html`
+        <div class="modal-overlay" @click=${(e) => e.target.classList.contains('modal-overlay') && this.closeHistoryModal()}>
+          <div class="modal-content">
+            <button class="close-button" @click=${this.closeHistoryModal}>&times;</button>
+            <h2>Voucher History</h2>
+            
+            <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f9f9f9; border-radius: 8px;">
+              <p><strong>Code:</strong> ${this.selectedVoucherForHistory.code}</p>
+              <p><strong>Name:</strong> ${this.selectedVoucherForHistory.name}</p>
+              <p><strong>Initial Amount:</strong> €${this.selectedVoucherForHistory.initialAmount}</p>
+              <p><strong>Remaining Balance:</strong> €${this.selectedVoucherForHistory.remainingAmount}</p>
+            </div>
+
+            <h3>Redemption History</h3>
+            ${this.selectedVoucherForHistory.history && this.selectedVoucherForHistory.history.length > 0 ?
+          this.selectedVoucherForHistory.history.map(h => html`
+                <div class="history-item">
+                  <strong>${new Date(h.date).toLocaleString('nl-BE')}</strong><br>
+                  ${h.type === 'redemption' ? 'Redeemed' : 'Purchased'}: €${h.amount}
+                </div>
+              `) :
+          html`<p>No redemptions yet.</p>`
+        }
+          </div>
+        </div>
+      ` : ''}
     `;
-    }
+  }
 }
 
 customElements.define('voucher-dashboard', VoucherDashboard);

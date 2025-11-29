@@ -1,17 +1,18 @@
 import { LitElement, html, css } from 'lit';
 import { createVoucher } from './voucher-service.js';
+import { sendVoucherEmail } from './email-service.js';
 
 export class VoucherWidget extends LitElement {
-    static properties = {
-        amount: { type: Number },
-        name: { type: String },
-        email: { type: String },
-        state: { type: String }, // 'idle', 'loading', 'success', 'error'
-        errorMessage: { type: String },
-        voucherCode: { type: String }
-    };
+  static properties = {
+    amount: { type: Number },
+    name: { type: String },
+    email: { type: String },
+    state: { type: String }, // 'idle', 'loading', 'success', 'error'
+    errorMessage: { type: String },
+    voucherCode: { type: String }
+  };
 
-    static styles = css`
+  static styles = css`
     :host {
       display: block;
       font-family: 'Inter', sans-serif;
@@ -107,67 +108,73 @@ export class VoucherWidget extends LitElement {
     }
   `;
 
-    constructor() {
-        super();
-        this.amount = 50;
-        this.name = '';
-        this.email = '';
-        this.state = 'idle';
-        this.errorMessage = '';
-        this.voucherCode = '';
+  constructor() {
+    super();
+    this.amount = 50;
+    this.name = '';
+    this.email = '';
+    this.state = 'idle';
+    this.errorMessage = '';
+    this.voucherCode = '';
+  }
+
+  handleInput(e) {
+    const { name, value } = e.target;
+    this[name] = value;
+  }
+
+  async handlePay(e) {
+    e.preventDefault();
+
+    if (!this.name || !this.email || !this.amount) {
+      this.errorMessage = 'Please fill in all fields';
+      return;
     }
 
-    handleInput(e) {
-        const { name, value } = e.target;
-        this[name] = value;
+    this.state = 'loading';
+    this.errorMessage = '';
+
+    try {
+      // Simulate Molly payment delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Create voucher
+      const code = await createVoucher({
+        name: this.name,
+        email: this.email,
+        amount: this.amount
+      });
+
+      this.voucherCode = code;
+      this.state = 'success';
+
+      // Send email with voucher details
+      await sendVoucherEmail({
+        code: code,
+        name: this.name,
+        email: this.email,
+        initialAmount: this.amount,
+        createdAt: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('Payment failed:', error);
+      this.state = 'error';
+      this.errorMessage = 'Payment failed. Please try again.';
     }
+  }
 
-    async handlePay(e) {
-        e.preventDefault();
+  reset() {
+    this.state = 'idle';
+    this.amount = 50;
+    this.name = '';
+    this.email = '';
+    this.voucherCode = '';
+  }
 
-        if (!this.name || !this.email || !this.amount) {
-            this.errorMessage = 'Please fill in all fields';
-            return;
-        }
-
-        this.state = 'loading';
-        this.errorMessage = '';
-
-        try {
-            // Simulate Molly payment delay
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            // Create voucher
-            const code = await createVoucher({
-                name: this.name,
-                email: this.email,
-                amount: this.amount
-            });
-
-            this.voucherCode = code;
-            this.state = 'success';
-
-            // Simulate sending email
-            console.log(`[MOCK EMAIL] Sending QR code for voucher ${code} to ${this.email}`);
-
-        } catch (error) {
-            console.error('Payment failed:', error);
-            this.state = 'error';
-            this.errorMessage = 'Payment failed. Please try again.';
-        }
-    }
-
-    reset() {
-        this.state = 'idle';
-        this.amount = 50;
-        this.name = '';
-        this.email = '';
-        this.voucherCode = '';
-    }
-
-    render() {
-        if (this.state === 'success') {
-            return html`
+  render() {
+    if (this.state === 'success') {
+      return html`
         <div class="widget-container">
           <h2>Payment Successful!</h2>
           <div class="message success">
@@ -182,9 +189,9 @@ export class VoucherWidget extends LitElement {
           <button @click=${this.reset}>Buy Another Voucher</button>
         </div>
       `;
-        }
+    }
 
-        return html`
+    return html`
       <div class="widget-container">
         <h2>Buy a Voucher</h2>
         <form @submit=${this.handlePay}>
@@ -211,7 +218,7 @@ export class VoucherWidget extends LitElement {
         </form>
       </div>
     `;
-    }
+  }
 }
 
 customElements.define('voucher-widget', VoucherWidget);

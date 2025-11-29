@@ -4,6 +4,7 @@ import { loginWithGoogle, logout, observeAuthState } from './auth-service.js';
 import { getAllReservations, updateReservation, addReservation, deleteReservation } from './reservation-service.js';
 import './data-grid.js';
 import './reservation-widget.js';
+import './voucher-widget.js';
 import './reservation-heatmap.js';
 import './reservation-heatmap.js';
 import './timeslot-heatmap.js';
@@ -17,6 +18,7 @@ export class AdminDashboard extends LitElement {
     reservations: { type: Array },
     loading: { type: Boolean },
     showAddForm: { type: Boolean },
+    showAddVoucherForm: { type: Boolean },
     selectedDate: { type: String },
     showBlockConfirm: { type: Boolean },
     slotsToBlock: { type: Array },
@@ -308,6 +310,7 @@ export class AdminDashboard extends LitElement {
     this.reservations = [];
     this.loading = true;
     this.showAddForm = false;
+    this.showAddVoucherForm = false;
     const today = new Date();
     this.selectedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     this.showBlockConfirm = false;
@@ -372,12 +375,18 @@ export class AdminDashboard extends LitElement {
     this.showAddForm = !this.showAddForm;
   }
 
+  toggleAddVoucherForm() {
+    this.showAddVoucherForm = !this.showAddVoucherForm;
+  }
+
   handleOverlayClick(e) {
     if (e.target.classList.contains('modal-overlay')) {
       if (this.showEditModal) {
         this.closeEditModal();
       } else if (this.showAddForm) {
         this.toggleAddForm();
+      } else if (this.showAddVoucherForm) {
+        this.toggleAddVoucherForm();
       } else if (this.showBlockConfirm) {
         this.closeBlockConfirm();
       }
@@ -815,6 +824,12 @@ export class AdminDashboard extends LitElement {
               <span class="btn-text">New Reservation</span>
             </button>
 
+            <button class="sidebar-btn primary" @click=${this.toggleAddVoucherForm}>
+              <span style="font-size: 1.2rem;">+</span>
+              <span class="btn-text">New Voucher</span>
+            </button>
+
+
             <button class="sidebar-btn" @click=${this.fetchReservations}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M23 4v6h-6M1 20v-6h6" />
@@ -932,6 +947,15 @@ export class AdminDashboard extends LitElement {
           <div class="modal-content">
             <button class="close-button" @click=${this.toggleAddForm}>&times;</button>
             <reservation-widget @reservation-success=${this.handleReservationSuccess}></reservation-widget>
+          </div>
+        </div>
+      ` : ''}
+
+      ${this.showAddVoucherForm ? html`
+        <div class="modal-overlay" @click=${this.handleOverlayClick}>
+          <div class="modal-content">
+            <button class="close-button" @click=${this.toggleAddVoucherForm}>&times;</button>
+            <voucher-widget></voucher-widget>
           </div>
         </div>
       ` : ''}
