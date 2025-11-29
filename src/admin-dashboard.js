@@ -5,7 +5,9 @@ import { getAllReservations, updateReservation, addReservation, deleteReservatio
 import './data-grid.js';
 import './reservation-widget.js';
 import './reservation-heatmap.js';
+import './reservation-heatmap.js';
 import './timeslot-heatmap.js';
+import './voucher-dashboard.js';
 import { auth } from './firebase-config.js';
 import { CONFIG } from './config.js';
 
@@ -24,7 +26,9 @@ export class AdminDashboard extends LitElement {
     isSidebarOpen: { type: Boolean },
     currentSelection: { type: Array },
     selectedDaysForBlocking: { type: Array },
-    blockDescription: { type: String }
+
+    blockDescription: { type: String },
+    currentView: { type: String } // 'reservations' or 'vouchers'
   };
 
   static styles = css`
@@ -315,7 +319,9 @@ export class AdminDashboard extends LitElement {
     this.isSidebarOpen = storedSidebarState === null ? true : storedSidebarState === 'true';
     this.currentSelection = [];
     this.selectedDaysForBlocking = [];
+    this.selectedDaysForBlocking = [];
     this.blockDescription = '';
+    this.currentView = 'reservations';
   }
 
   connectedCallback() {
@@ -818,10 +824,42 @@ export class AdminDashboard extends LitElement {
             </button>
           </div>
 
-          <div class="user-info">
-            <div class="user-email" title="${this.user.email}">${this.user.email}</div>
-            <button class="sidebar-btn" @click=${this.handleLogout} style="color: #e57373;">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <div class="sidebar-content">
+            <div class="logo-area">
+              <h2>Admin</h2>
+            </div>
+            
+            <nav class="nav-menu">
+              <button 
+                class="nav-item ${this.currentView === 'reservations' ? 'active' : ''}"
+                @click=${() => this.currentView = 'reservations'}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span class="btn-text">Reservations</span>
+              </button>
+
+              <button 
+                class="nav-item ${this.currentView === 'vouchers' ? 'active' : ''}"
+                @click=${() => this.currentView = 'vouchers'}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path>
+                  <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path>
+                  <path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"></path>
+                </svg>
+                <span class="btn-text">Vouchers</span>
+              </button>
+            </nav>
+
+            <div style="flex-grow: 1;"></div>
+
+            <button class="logout-btn" @click=${logout}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
@@ -832,53 +870,60 @@ export class AdminDashboard extends LitElement {
         </aside>
 
         <main>
-          <div class="dashboard-section heatmap-section">
-            <reservation-heatmap 
-              .reservations=${this.reservations}
-              .selectedDate=${this.selectedDate}
-              .selectedDaysForBlocking=${this.selectedDaysForBlocking}
-              @date-selected=${this.handleDateSelected}
-              @days-selected=${this.handleDaysSelected}
-            ></reservation-heatmap>
-          </div>
-          
-          ${this.selectedDate ? html`
-            <div class="action-row" style="padding: 0 0 1rem 0; display: flex; justify-content: space-between; align-items: center; gap: 1rem; min-height: 40px;">
-              ${this.currentSelection.length > 0 ? html`
-                <div style="display: flex; align-items: center; gap: 1rem; background: #e3f2fd; padding: 0.5rem 1rem; border-radius: 4px;">
-                  <span style="font-weight: 500; color: #1565c0;">${this.currentSelection.length} selected</span>
-                  <button @click=${this.handleBatchAction} style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">
-                    Action
-                  </button>
-                  <button @click=${this.clearSelection} style="background: transparent; color: #666; padding: 0.4rem; border: 1px solid #ccc;">
-                    Clear
-                  </button>
-                </div>
-              ` : html`<div></div>`}
-              
-              <div style="display: flex; gap: 1rem;">
-                <button @click=${() => this.handleUnblockDay()} style="background: #4CAF50; padding: 0.5rem 1rem;">Unblock Day</button>
-                <button @click=${() => this.handleBlockDay()} style="background: #e57373; padding: 0.5rem 1rem;">Block Day</button>
-              </div>
-            </div>
-            <div class="dashboard-section" style="flex: 0 0 auto; min-height: auto;">
-              <timeslot-heatmap
-                .date=${this.selectedDate}
+          ${this.currentView === 'reservations' ? html`
+            <div class="dashboard-section heatmap-section">
+              <reservation-heatmap 
                 .reservations=${this.reservations}
-                .selectedSlots=${this.currentSelection}
-                @selection-changed=${this.handleSelectionChanged}
-              ></timeslot-heatmap>
+                .selectedDate=${this.selectedDate}
+                .selectedDaysForBlocking=${this.selectedDaysForBlocking}
+                @date-selected=${this.handleDateSelected}
+                @days-selected=${this.handleDaysSelected}
+              ></reservation-heatmap>
             </div>
-          ` : ''}
+            
+            ${this.selectedDate ? html`
+              <div class="dashboard-section timeslot-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                  <h3>${new Date(this.selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
+                  
+                  ${this.currentSelection.length > 0 ? html`
+                    <div class="selection-toolbar" style="display: flex; gap: 1rem; align-items: center; background: #e3f2fd; padding: 0.5rem 1rem; border-radius: 4px;">
+                      <span>${this.currentSelection.length} slots selected</span>
+                      <button @click=${() => this.handleBatchAction('block')} style="background: #e57373; padding: 0.5rem 1rem;">Block</button>
+                      <button @click=${() => this.handleBatchAction('unblock')} style="background: #4CAF50; padding: 0.5rem 1rem;">Unblock</button>
+                      <button @click=${this.clearSelection} style="background: none; color: #666; border: 1px solid #ccc; padding: 0.5rem;">
+                        &times;
+                      </button>
+                    </div>
+                  ` : html`<div></div>`}
+                  
+                  <div style="display: flex; gap: 1rem;">
+                    <button @click=${() => this.handleUnblockDay()} style="background: #4CAF50; padding: 0.5rem 1rem;">Unblock Day</button>
+                    <button @click=${() => this.handleBlockDay()} style="background: #e57373; padding: 0.5rem 1rem;">Block Day</button>
+                  </div>
+                </div>
+                <div class="dashboard-section" style="flex: 0 0 auto; min-height: auto;">
+                  <timeslot-heatmap
+                    .date=${this.selectedDate}
+                    .reservations=${this.reservations}
+                    .selectedSlots=${this.currentSelection}
+                    @selection-changed=${this.handleSelectionChanged}
+                  ></timeslot-heatmap>
+                </div>
+              </div>
+            ` : ''}
 
-          <div class="dashboard-section grid-section">
-            <data-grid 
-              .items=${this.filteredReservations}
-              @row-click=${this.handleRowClick}
-              @cancel-click=${this.handleCancelClick}
-              @uncancel-click=${this.handleUncancelClick}
-            ></data-grid>
-          </div>
+            <div class="dashboard-section grid-section">
+              <data-grid 
+                .items=${this.filteredReservations}
+                @row-click=${this.handleRowClick}
+                @cancel-click=${this.handleCancelClick}
+                @uncancel-click=${this.handleUncancelClick}
+              ></data-grid>
+            </div>
+          ` : html`
+            <voucher-dashboard></voucher-dashboard>
+          `}
         </main>
       </div>
 
