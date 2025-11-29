@@ -170,7 +170,7 @@ export class AdminDashboard extends LitElement {
       opacity: 0.9;
     }
 
-    .sidebar-btn {
+    .sidebar-btn, .nav-item, .logout-btn {
       display: flex;
       align-items: center;
       gap: 0.8rem;
@@ -187,8 +187,13 @@ export class AdminDashboard extends LitElement {
       overflow: hidden;
     }
 
-    .sidebar-btn:hover {
+    .sidebar-btn:hover, .nav-item:hover, .logout-btn:hover {
       background: #f5f5f5;
+    }
+
+    .nav-item.active {
+      background: #e3f2fd;
+      color: #1976d2;
     }
 
     .sidebar-btn.primary {
@@ -839,17 +844,14 @@ export class AdminDashboard extends LitElement {
             </button>
           </div>
 
-          <div class="sidebar-content">
-            <div class="logo-area">
-              <h2>Admin</h2>
-            </div>
-            
+          <div class="sidebar-content">            
             <nav class="nav-menu">
+            
               <button 
                 class="nav-item ${this.currentView === 'reservations' ? 'active' : ''}"
                 @click=${() => this.currentView = 'reservations'}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                   <line x1="16" y1="2" x2="16" y2="6"></line>
                   <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -862,7 +864,7 @@ export class AdminDashboard extends LitElement {
                 class="nav-item ${this.currentView === 'vouchers' ? 'active' : ''}"
                 @click=${() => this.currentView = 'vouchers'}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path>
                   <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path>
                   <path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"></path>
@@ -874,7 +876,7 @@ export class AdminDashboard extends LitElement {
             <div style="flex-grow: 1;"></div>
 
             <button class="logout-btn" @click=${logout}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />

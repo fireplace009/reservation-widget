@@ -106,6 +106,32 @@ export class VoucherWidget extends LitElement {
       background: #f0f0f0;
       border-radius: 8px;
     }
+
+    .amount-chips {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .chip {
+      padding: 0.5rem 1rem;
+      background: #f0f0f0;
+      border: 1px solid #e0e0e0;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .chip:hover {
+      background: #e0e0e0;
+    }
+
+    .chip.active {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
   `;
 
   constructor() {
@@ -198,6 +224,11 @@ export class VoucherWidget extends LitElement {
           <div class="form-group">
             <label for="amount">Amount (€)</label>
             <input type="number" id="amount" name="amount" min="10" .value=${this.amount} @input=${this.handleInput} required />
+            <div class="amount-chips">
+              <div class="chip ${this.amount == 20 ? 'active' : ''}" @click=${() => this.amount = 20}>€20</div>
+              <div class="chip ${this.amount == 50 ? 'active' : ''}" @click=${() => this.amount = 50}>€50</div>
+              <div class="chip ${this.amount == 100 ? 'active' : ''}" @click=${() => this.amount = 100}>€100</div>
+            </div>
           </div>
 
           <div class="form-group">

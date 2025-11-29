@@ -12,7 +12,9 @@ export class VoucherDashboard extends LitElement {
     loading: { type: Boolean },
     error: { type: String },
     successMessage: { type: String },
-    selectedVoucherForHistory: { type: Object }
+    selectedVoucherForHistory: { type: Object },
+    sortField: { type: String },
+    sortDirection: { type: String } // 'asc' or 'desc'
   };
 
   static styles = css`
@@ -64,6 +66,31 @@ export class VoucherDashboard extends LitElement {
 
     tbody tr:hover {
       background-color: #f5f5f5;
+    }
+
+    tbody tr.redeemed {
+      color: #aaa;
+      background-color: #fafafa;
+    }
+
+    tbody tr.redeemed:hover {
+      background-color: #f0f0f0;
+    }
+
+    th {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    th:hover {
+      background-color: #eee;
+    }
+
+    th::after {
+      content: '↕';
+      font-size: 0.8em;
+      margin-left: 5px;
+      color: #999;
     }
 
     input {
@@ -167,6 +194,8 @@ export class VoucherDashboard extends LitElement {
     this.successMessage = '';
     this.scanner = null;
     this.selectedVoucherForHistory = null;
+    this.sortField = 'createdAt';
+    this.sortDirection = 'desc';
   }
 
   connectedCallback() {
@@ -280,6 +309,32 @@ export class VoucherDashboard extends LitElement {
     this.selectedVoucherForHistory = null;
   }
 
+  handleSort(field) {
+    if (this.sortField === field) {
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortField = field;
+      this.sortDirection = 'asc';
+    }
+  }
+
+  get sortedVouchers() {
+    return [...this.vouchers].sort((a, b) => {
+      let aValue = a[this.sortField];
+      let bValue = b[this.sortField];
+
+      // Handle date comparison
+      if (this.sortField === 'createdAt') {
+        aValue = new Date(aValue).getTime();
+        bValue = new Date(bValue).getTime();
+      }
+
+      if (aValue < bValue) return this.sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return this.sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
   render() {
     return html`
       <div class="dashboard-grid">
@@ -363,15 +418,18 @@ export class VoucherDashboard extends LitElement {
             <table>
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Name</th>
-                  <th>Amount</th>
-                  <th>Balance</th>
+                  <th @click=${() => this.handleSort('createdAt')}>Date</th>
+                  <th @click=${() => this.handleSort('name')}>Name</th>
+                  <th @click=${() => this.handleSort('initialAmount')}>Amount</th>
+                  <th @click=${() => this.handleSort('remainingAmount')}>Balance</th>
                 </tr>
               </thead>
               <tbody>
-                ${this.vouchers.map(v => html`
-                  <tr @click=${() => this.handleVoucherClick(v)}>
+                ${this.sortedVouchers.map(v => html`
+                  <tr 
+                    class="${v.remainingAmount === 0 ? 'redeemed' : ''}"
+                    @click=${() => this.handleVoucherClick(v)}
+                  >
                     <td>${new Date(v.createdAt).toLocaleDateString()}</td>
                     <td>${v.name}</td>
                     <td>€${v.initialAmount}</td>
