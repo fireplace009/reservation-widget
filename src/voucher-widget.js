@@ -7,6 +7,7 @@ export class VoucherWidget extends LitElement {
     amount: { type: Number },
     name: { type: String },
     email: { type: String },
+    description: { type: String },
     state: { type: String }, // 'idle', 'loading', 'success', 'error'
     errorMessage: { type: String },
     voucherCode: { type: String }
@@ -139,6 +140,7 @@ export class VoucherWidget extends LitElement {
     this.amount = 50;
     this.name = '';
     this.email = '';
+    this.description = '';
     this.state = 'idle';
     this.errorMessage = '';
     this.voucherCode = '';
@@ -168,6 +170,7 @@ export class VoucherWidget extends LitElement {
       const code = await createVoucher({
         name: this.name,
         email: this.email,
+        description: this.description,
         amount: this.amount
       });
 
@@ -179,6 +182,7 @@ export class VoucherWidget extends LitElement {
         code: code,
         name: this.name,
         email: this.email,
+        description: this.description,
         initialAmount: this.amount,
         createdAt: new Date().toISOString()
       });
@@ -195,6 +199,7 @@ export class VoucherWidget extends LitElement {
     this.amount = 50;
     this.name = '';
     this.email = '';
+    this.description = '';
     this.voucherCode = '';
   }
 
@@ -239,6 +244,11 @@ export class VoucherWidget extends LitElement {
           <div class="form-group">
             <label for="email">Email Address</label>
             <input type="email" id="email" name="email" placeholder="john@example.com" .value=${this.email} @input=${this.handleInput} required />
+          </div>
+
+          <div class="form-group">
+            <label for="description">Description (Optional)</label>
+            <input type="text" id="description" name="description" placeholder="Happy Birthday!" .value=${this.description} @input=${this.handleInput} />
           </div>
 
           ${this.state === 'error' ? html`<div class="message error">${this.errorMessage}</div>` : ''}

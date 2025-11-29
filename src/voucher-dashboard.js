@@ -77,6 +77,14 @@ export class VoucherDashboard extends LitElement {
       background-color: #f0f0f0;
     }
 
+    tbody tr:nth-child(even):not(.redeemed) {
+      background-color: #fcfcfc;
+    }
+
+    tbody tr:nth-child(even):not(.redeemed):hover {
+      background-color: #f5f5f5;
+    }
+
     th {
       cursor: pointer;
       user-select: none;
@@ -420,6 +428,8 @@ export class VoucherDashboard extends LitElement {
                 <tr>
                   <th @click=${() => this.handleSort('createdAt')}>Date</th>
                   <th @click=${() => this.handleSort('name')}>Name</th>
+                  <th @click=${() => this.handleSort('email')}>Email</th>
+                  <th @click=${() => this.handleSort('description')}>Description</th>
                   <th @click=${() => this.handleSort('initialAmount')}>Amount</th>
                   <th @click=${() => this.handleSort('remainingAmount')}>Balance</th>
                 </tr>
@@ -430,13 +440,15 @@ export class VoucherDashboard extends LitElement {
                     class="${v.remainingAmount === 0 ? 'redeemed' : ''}"
                     @click=${() => this.handleVoucherClick(v)}
                   >
-                    <td>${new Date(v.createdAt).toLocaleDateString()}</td>
+                    <td>${new Date(v.createdAt).toLocaleString('nl-BE', { dateStyle: 'short', timeStyle: 'short' })}</td>
                     <td>${v.name}</td>
+                    <td>${v.email}</td>
+                    <td>${v.description || '-'}</td>
                     <td>€${v.initialAmount}</td>
                     <td>€${v.remainingAmount}</td>
                   </tr>
                 `)}
-                ${this.vouchers.length === 0 ? html`<tr><td colspan="4">No vouchers sold yet.</td></tr>` : ''}
+                ${this.vouchers.length === 0 ? html`<tr><td colspan="6">No vouchers sold yet.</td></tr>` : ''}
               </tbody>
             </table>
           </div>

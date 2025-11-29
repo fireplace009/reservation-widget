@@ -18,6 +18,7 @@ export const createVoucher = async (voucherData) => {
         code: code,
         name: voucherData.name,
         email: voucherData.email,
+        description: voucherData.description || '',
         initialAmount: Number(voucherData.amount),
         remainingAmount: Number(voucherData.amount),
         createdAt: new Date().toISOString(),
