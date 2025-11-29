@@ -49,3 +49,6 @@ This project is a comprehensive restaurant reservation system built using **Lit*
 1.  Install dependencies: `npm install`
 2.  Run development server: `npm run dev`
 3.  Build for production: `npm run build`
+
+
+Be kind to each other !
