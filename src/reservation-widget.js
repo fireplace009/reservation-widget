@@ -187,6 +187,28 @@ export class ReservationWidget extends LitElement {
     return CONFIG.OPEN_DAYS.includes(day);
   }
 
+  hasAvailableSlots() {
+    // Check if there are any available slots for the current date
+    if (!this.date || !this.bookedCounts || !this.blockedSlots) return true;
+
+    const allSlots = this.timeSlots;
+
+    for (const slot of allSlots) {
+      // Skip if blocked
+      if (this.blockedSlots.includes(slot)) continue;
+
+      // Check if slot has capacity
+      const booked = this.bookedCounts[slot] || 0;
+      const remaining = CONFIG.MAX_CAPACITY_PER_SLOT - booked;
+
+      if (remaining >= this.guests) {
+        return true; // Found at least one available slot
+      }
+    }
+
+    return false; // No available slots
+  }
+
   async handleInput(e) {
     const { name, value } = e.target;
     this[name] = value;
@@ -196,9 +218,16 @@ export class ReservationWidget extends LitElement {
         this.errorMessage = t('closed_day', this.locale);
         this.time = '';
         this.bookedCounts = {};
+        this.blockedSlots = [];
       } else {
         this.errorMessage = '';
         await this.fetchAvailability(value);
+
+        // Check if there are any available slots
+        if (!this.hasAvailableSlots()) {
+          this.errorMessage = 'No available timeslots for this date. All slots are fully booked or blocked.';
+          this.time = '';
+        }
       }
     }
   }

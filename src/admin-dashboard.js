@@ -363,8 +363,13 @@ export class AdminDashboard extends LitElement {
 
   handleOverlayClick(e) {
     if (e.target.classList.contains('modal-overlay')) {
-      this.toggleAddForm();
-      this.closeEditModal();
+      if (this.showEditModal) {
+        this.closeEditModal();
+      } else if (this.showAddForm) {
+        this.toggleAddForm();
+      } else if (this.showBlockConfirm) {
+        this.closeBlockConfirm();
+      }
     }
   }
 
