@@ -304,7 +304,8 @@ export class AdminDashboard extends LitElement {
     this.reservations = [];
     this.loading = true;
     this.showAddForm = false;
-    this.selectedDate = null;
+    const today = new Date();
+    this.selectedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     this.showBlockConfirm = false;
     this.slotsToBlock = [];
     this.selectedReservation = null;
@@ -383,7 +384,11 @@ export class AdminDashboard extends LitElement {
   }
 
   handleDateSelected(e) {
-    this.selectedDate = e.detail.date;
+    if (this.selectedDate === e.detail.date) {
+      this.selectedDate = null;
+    } else {
+      this.selectedDate = e.detail.date;
+    }
   }
 
   handleDaysSelected(e) {
@@ -893,7 +898,7 @@ export class AdminDashboard extends LitElement {
             <h2>Edit Reservation</h2>
             <p><strong>Date:</strong> ${this.selectedReservation.date} at ${this.selectedReservation.time}</p>
             <p><strong>Name:</strong> ${this.selectedReservation.name}</p>
-            <p><strong>Email:</strong> ${this.selectedReservation.email}</p>
+            <p><strong>Email:</strong> <a href="mailto:${this.selectedReservation.email}">${this.selectedReservation.email}</a></p>
             <p><strong>Phone:</strong> ${this.selectedReservation.phone || '-'}</p>
             
             <div class="form-group">
