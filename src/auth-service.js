@@ -6,10 +6,6 @@ const provider = new GoogleAuthProvider();
 export const loginWithGoogle = async () => {
     try {
         const result = await signInWithPopup(auth, provider);
-        if (result.user.email !== 'patteeuw.bernard@gmail.com') {
-            await signOut(auth);
-            throw new Error('Unauthorized email');
-        }
         return result.user;
     } catch (error) {
         console.error("Error logging in with Google", error);
@@ -28,11 +24,14 @@ export const logout = async () => {
 
 export const observeAuthState = (callback) => {
     return onAuthStateChanged(auth, (user) => {
-        if (user && user.email !== 'patteeuw.bernard@gmail.com') {
-            signOut(auth);
-            callback(null);
-        } else {
-            callback(user);
-        }
+        callback(user);
     });
+};
+
+export const getUserRole = (user) => {
+    if (!user) return null;
+    if (user.email === 'patteeuw.bernard@gmail.com') {
+        return 'super_admin';
+    }
+    return 'customer';
 };

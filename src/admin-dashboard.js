@@ -9,7 +9,11 @@ import './reservation-heatmap.js';
 import './reservation-heatmap.js';
 import './timeslot-heatmap.js';
 import './voucher-dashboard.js';
+import './customer-profile-form.js';
+import './super-admin-dashboard.js';
 import { auth } from './firebase-config.js';
+import { getUserRole } from './auth-service.js';
+import { getCustomer } from './customer-service.js';
 import { CONFIG } from './config.js';
 
 export class AdminDashboard extends LitElement {
@@ -30,7 +34,11 @@ export class AdminDashboard extends LitElement {
     selectedDaysForBlocking: { type: Array },
 
     blockDescription: { type: String },
-    currentView: { type: String } // 'reservations' or 'vouchers'
+    blockDescription: { type: String },
+    currentView: { type: String }, // 'reservations' or 'vouchers'
+    userRole: { type: String }, // 'super_admin' or 'customer'
+    customerStatus: { type: String }, // 'pending', 'approved', 'declined'
+    isSuperAdminView: { type: Boolean }
   };
 
   static styles = css`
@@ -330,16 +338,39 @@ export class AdminDashboard extends LitElement {
     this.selectedDaysForBlocking = [];
     this.blockDescription = '';
     this.currentView = 'reservations';
+    this.isSuperAdminView = true;
   }
 
   connectedCallback() {
     super.connectedCallback();
-    this.unsubscribeAuth = observeAuthState((user) => {
+    this.unsubscribeAuth = observeAuthState(async (user) => {
       this.user = user;
       if (user) {
-        this.fetchReservations();
+        this.userRole = getUserRole(user);
+
+        if (this.userRole === 'customer') {
+          try {
+            const profile = await getCustomer(user.uid);
+            this.customerStatus = profile ? profile.status : 'pending';
+
+            // If no profile exists, create one immediately
+            if (!profile) {
+              await import('./customer-service.js').then(m => m.createCustomerProfile(user));
+              this.customerStatus = 'pending';
+            }
+          } catch (e) {
+            console.error('Error fetching customer profile:', e);
+            this.customerStatus = 'pending';
+          }
+        }
+
+        if (this.userRole === 'super_admin' || (this.userRole === 'customer' && this.customerStatus === 'approved')) {
+          this.fetchReservations();
+        }
       } else {
         this.reservations = [];
+        this.userRole = null;
+        this.customerStatus = null;
       }
       this.loading = false;
     });
@@ -808,6 +839,22 @@ export class AdminDashboard extends LitElement {
       `;
     }
 
+    // Routing Logic
+    if (this.userRole === 'super_admin' && this.isSuperAdminView) {
+      return html`<super-admin-dashboard @navigate-customer=${() => this.isSuperAdminView = false}></super-admin-dashboard>`;
+    }
+
+    if (this.userRole === 'customer' && this.customerStatus !== 'approved') {
+      return html`
+        <div style="padding: 2rem; max-width: 800px; margin: 0 auto;">
+          <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+            <button @click=${logout} style="background: transparent; border: 1px solid #ccc; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">Logout</button>
+          </div>
+          <customer-profile-form .user=${this.user}></customer-profile-form>
+        </div>
+      `;
+    }
+
     return html`
       <div class="layout-container">
         <aside class="${this.isSidebarOpen ? 'open' : 'closed'}">
@@ -824,6 +871,16 @@ export class AdminDashboard extends LitElement {
           </div>
           
           <div class="sidebar-content">
+            ${this.userRole === 'super_admin' ? html`
+              <button class="sidebar-btn" @click=${() => this.isSuperAdminView = true} style="background: #e3f2fd; color: #1565c0; margin-bottom: 1rem;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span class="btn-text">Super Admin</span>
+              </button>
+            ` : ''}
+
             <button class="sidebar-btn primary" @click=${this.toggleAddForm}>
               <span style="font-size: 1.2rem;">+</span>
               <span class="btn-text">New Reservation</span>
